@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>玄牝之门</title>
+  <icon>https://mark-cx.github.io/icon.png</icon>
+  <subtitle>金乌栖北海，龙虎掌中花。</subtitle>
+  <link href="https://mark-cx.github.io/atom.xml" rel="self"/>
+  
+  <link href="https://mark-cx.github.io/"/>
+  <updated>2022-07-29T11:02:20.519Z</updated>
+  <id>https://mark-cx.github.io/</id>
+  
+  <author>
+    <name>Li Xiang</name>
+    
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>GitHub+action+hexo 构建自动部署博客</title>
+    <link href="https://mark-cx.github.io/2022/07/29/GitHub_action_hexo/"/>
+    <id>https://mark-cx.github.io/2022/07/29/GitHub_action_hexo/</id>
+    <published>2022-07-29T11:02:20.519Z</published>
+    <updated>2022-07-29T11:02:20.519Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2 id=&quot;需求&quot;&gt;&lt;a href=&quot;#需求&quot; class=&quot;headerlink&quot; title=&quot;需求&quot;&gt;&lt;/a&gt;需求&lt;/h2&gt;&lt;p&gt;想要一个自己的博客写文，但我又想白嫖。又不想花过多时间去管理博客后台。&lt;/p&gt;
+&lt;h3 id=&quot;hexo&quot;&gt;&lt;a href=&quot;#hexo&quot;</summary>
+        
+      
+    
+    
+    
+    <category term="web前端" scheme="https://mark-cx.github.io/categories/web%E5%89%8D%E7%AB%AF/"/>
+    
+    
+    <category term="hexo" scheme="https://mark-cx.github.io/tags/hexo/"/>
+    
+    <category term="GitHub" scheme="https://mark-cx.github.io/tags/GitHub/"/>
+    
+    <category term="在线部署" scheme="https://mark-cx.github.io/tags/%E5%9C%A8%E7%BA%BF%E9%83%A8%E7%BD%B2/"/>
+    
+    <category term="next" scheme="https://mark-cx.github.io/tags/next/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>linux cp 命令无法创建链接符号</title>
+    <link href="https://mark-cx.github.io/2022/07/29/cp_dont_user_link/"/>
+    <id>https://mark-cx.github.io/2022/07/29/cp_dont_user_link/</id>
+    <published>2022-07-29T11:02:20.519Z</published>
+    <updated>2022-07-29T11:02:20.519Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h3 id=&quot;现象描述&quot;&gt;&lt;a href=&quot;#现象描述&quot; class=&quot;headerlink&quot; title=&quot;现象描述&quot;&gt;&lt;/a&gt;现象描述&lt;/h3&gt;&lt;blockquote&gt;
+&lt;p&gt;在 Ubuntu 下使用 cp</summary>
+        
+      
+    
+    
+    
+    <category term="linux 命令" scheme="https://mark-cx.github.io/categories/linux-%E5%91%BD%E4%BB%A4/"/>
+    
+    
+    <category term="linux" scheme="https://mark-cx.github.io/tags/linux/"/>
+    
+    <category term="命令" scheme="https://mark-cx.github.io/tags/%E5%91%BD%E4%BB%A4/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Picgo 设置 github 图床</title>
+    <link href="https://mark-cx.github.io/2022/07/29/picgo_github/"/>
+    <id>https://mark-cx.github.io/2022/07/29/picgo_github/</id>
+    <published>2022-07-29T11:02:20.519Z</published>
+    <updated>2022-07-29T11:02:20.519Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h3 id=&quot;下载picgo&quot;&gt;&lt;a href=&quot;#下载picgo&quot; class=&quot;headerlink&quot; title=&quot;下载picgo&quot;&gt;&lt;/a&gt;下载 picgo&lt;/h3&gt;&lt;blockquote&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a</summary>
+        
+      
+    
+    
+    
+    <category term="图床" scheme="https://mark-cx.github.io/categories/%E5%9B%BE%E5%BA%8A/"/>
+    
+    
+    <category term="图床" scheme="https://mark-cx.github.io/tags/%E5%9B%BE%E5%BA%8A/"/>
+    
+    <category term="picgo" scheme="https://mark-cx.github.io/tags/picgo/"/>
+    
+    <category term="github" scheme="https://mark-cx.github.io/tags/github/"/>
+    
+  </entry>
+  
+</feed>

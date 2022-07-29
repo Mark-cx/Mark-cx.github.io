@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>GitHub+action+hexo 构建自动部署博客</title>
+    <url>/2022/07/29/GitHub_action_hexo/</url>
+    <content><![CDATA[<h2 id="需求"><a href="#需求" class="headerlink" title="需求"></a>需求</h2><p>想要一个自己的博客写文，但我又想白嫖。又不想花过多时间去管理博客后台。</p>
+<h3 id="hexo"><a href="#hexo" class="headerlink" title="hexo"></a>hexo</h3><p>性质：材料<br>博客的主要原材料，拥有不俗的各路开发者提供的精美主题。</p>
+<p>了解更多: <a href="https://hexo.io/">hexo</a></p>
+<h2 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h2><p>GitHub 提供的 action 在线部署来执行源码动作，page 作为静态访问，因此需要两个仓库。</p>
+<p>action 详解: <a href="https://docs.github.com/cn//actions">action</a></p>
+<p>page 详解: <a href="https://pages.github.com/">page</a></p>
+<h2 id="图解"><a href="#图解" class="headerlink" title="图解"></a>图解</h2><p><img src="https://cdn.jsdelivr.net/gh/Mark-cx0/picbs@main/%E5%8F%AF%E8%A7%86%E5%8C%96%E5%9C%A8%E7%BA%BF%E5%8D%9A%E5%AE%A2.png" alt="简单创建过程"></p>
+<p><img src="https://cdn.jsdelivr.net/gh/Mark-cx0/picbs@main/GitHubActionHexo.png" alt="关系图"></p>
+<h2 id="步骤执行"><a href="#步骤执行" class="headerlink" title="步骤执行"></a>步骤执行</h2><h3 id="获取hexo"><a href="#获取hexo" class="headerlink" title="获取hexo"></a>获取 hexo</h3><p>直接百度 hexo，进入官网。</p>
+<p>1. 若安装在本地，可稍后上传至 github<br>2. 若想直接 fork，先 GitHub 所需建的库</p>
+<h3 id="github库"><a href="#github库" class="headerlink" title="github库"></a>github 库</h3><p>在你的 github 新建两个库，一个私有（也可公有：这样其他人也可以访问到你的源码）、一个公有</p>
+<p>私有库：存放源码<br>公有库：访问节点，存静态 HTML。库名： &lt;你的 GitHub 用户名&gt;.github.io.git 类如：xxx.github.io.git </p>
+<h3 id="关联两个仓库"><a href="#关联两个仓库" class="headerlink" title="关联两个仓库"></a>关联两个仓库</h3><p>本地 ssh 生成<br>存放源码仓库使用生产的私钥；自己 GitHub 仓库设置公钥。</p>
+<h3 id="action创建流"><a href="#action创建流" class="headerlink" title="action创建流"></a>action 创建流</h3><p>在源码仓库 action 中创建一个新的流用来进行构建。</p>
+<h3 id="注：笼统记录，详解见下列参考"><a href="#注：笼统记录，详解见下列参考" class="headerlink" title="注：笼统记录，详解见下列参考"></a>注：笼统记录，详解见下列参考</h3><p><a href="https://blog.csdn.net/qq_41426117/article/details/108703295">GitHub Action + Hexo 实现在线写作</a></p>
+<p><a href="https://blog.csdn.net/u012208219/article/details/106883054">利用 GitHub+Actions 自动部署 Hexo 博客</a></p>
+]]></content>
+      <categories>
+        <category>web前端</category>
+      </categories>
+      <tags>
+        <tag>hexo</tag>
+        <tag>GitHub</tag>
+        <tag>在线部署</tag>
+        <tag>next</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>linux cp 命令无法创建链接符号</title>
+    <url>/2022/07/29/cp_dont_user_link/</url>
+    <content><![CDATA[<h3 id="现象描述"><a href="#现象描述" class="headerlink" title="现象描述"></a>现象描述</h3><blockquote>
+<p>在 Ubuntu 下使用 cp 命令进行复制的时候，所复制的目录下的链接无法创建。<br>如下图：</p>
+</blockquote>
+<blockquote>
+<p><img src="https://raw.githubusercontent.com/Mark-cx0/picbs/main/202207291712443.png" alt="截图"></p>
+</blockquote>
+<h3 id="解决"><a href="#解决" class="headerlink" title="解决"></a>解决</h3><blockquote>
+<p><code>cp --help</code> 查看帮助目录<br>-L, –dereference            always follow symbolic links in SOURCE<br>其中 - L 参数                   始终遵循源中的符号链接<br><em>所以 <code>cp -rLf</code> [复制的目录]</em></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>linux 命令</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>命令</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Picgo 设置 github 图床</title>
+    <url>/2022/07/29/picgo_github/</url>
+    <content><![CDATA[<h3 id="下载picgo"><a href="#下载picgo" class="headerlink" title="下载picgo"></a>下载 picgo</h3><blockquote>
+<ol>
+<li><a href="https://github.com/Molunerfinn/PicGo/releases/">picgo 下载</a><br>根据需要进行下载</li>
+<li>安装</li>
+<li>图床仓库<blockquote>
+<ol>
+<li> github 新建数一个仓库来作为图床数据库 (如果没有 github 账号可以自行使用邮箱进行注册 <a href="https://github.com/">github.com</a>)</li>
+<li> 登录 github 后，直接到 Settings/Developer settings 处的 personal access token；点击 Generate new token 创建新的 token<br>找不位置点此处: <a href="https://github.com/settings/tokens">直达 github token</a>。<br>创建时 repo 选项必选其它随意或根据个人需求选择。<br><em>注意：token 创建好以后记得保存，最好长期保存，因为如果你需要在别的电脑也能用 picgo 上传图片的话需要用到</em></li>
+</ol>
+</blockquote>
+</li>
+<li> picgo app github 图床仓库设置<br>如下图：<br><img src="https://raw.githubusercontent.com/Mark-cx0/picbs/main/202207291827573.png"></li>
+</ol>
+</blockquote>
+<h3 id="picgo问题记录"><a href="#picgo问题记录" class="headerlink" title="picgo问题记录"></a>picgo 问题记录</h3><blockquote>
+<p>问题：同一张图片二次上传如果上传失败提示：“请检查网络或者配置”<br>参考解决方案：</p>
+<ol>
+<li>重启 picgo</li>
+<li> 到 picgo 设置 -&gt; 时间戳重命名；将其设置为开。</li>
+</ol>
+</blockquote>
+<h3 id="raw-githubusercontent-com代理点失效问题"><a href="#raw-githubusercontent-com代理点失效问题" class="headerlink" title="raw.githubusercontent.com代理点失效问题"></a>raw.githubusercontent.com 代理点失效问题</h3><blockquote>
+<p>问题：写这篇文章时 picgo 到 github 的代理域为 raw.githubusercontent.com, 因为是国外的；<br>墙的缘故可能导致失效无法访问到 github，我曾经遇到过此类问题。<br>参考解决方案：</p>
+<blockquote>
+<ol>
+<li>进行域名的 ip 查询 -&gt;<a href="https://ip.cn/">IP 查询</a> </li>
+<li>打开电脑的 host 文件；Windows host 文件位置 (C:\Windows\System32\drivers\etc)</li>
+<li><code>win+r</code> 输入 cmd 打开命令行窗口 <code>ping [ip]</code> 查询此 ip 是否可用，如不可用大概率被墙。<br>硬要用者，可以考虑科学上网<img src="https://user-images.githubusercontent.com/59907961/181743769-363f15db-94fb-4a92-8334-ae9fa1b8d7b7.png" alt="01665A38"></li>
+<li>末尾输入如下格式 [ip 域名] 如：185.199.109.133 raw.githubusercontent.com<br>意为使用 ip 代替域名进行访问</li>
+<li>命令行输入：<code>ipconfig/flushdns</code> 刷新一下 DNS</li>
+<li> 再次尝试访问域名</li>
+</ol>
+</blockquote>
+</blockquote>
+]]></content>
+      <categories>
+        <category>图床</category>
+      </categories>
+      <tags>
+        <tag>图床</tag>
+        <tag>picgo</tag>
+        <tag>github</tag>
+      </tags>
+  </entry>
+</search>
