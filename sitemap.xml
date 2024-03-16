@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>https://mark-cx.github.io/2024/01/15/2024%E7%9A%84%E4%B8%80%E4%BA%9B%E5%BF%83%E5%BE%97%E4%BD%93%E4%BC%9A/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/08/19/env_compile_brun_debug/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/06/16/GitHub_action_hexo/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/08/19/blog_sample/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/08/19/%E6%88%91%E9%81%87%E5%88%B0VMware%E7%9A%84%E9%97%AE%E9%A2%98/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/07/26/picgo_github/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/07/25/cp_dont_user_link/</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/about/index.html</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/archives/index.html</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/index.html</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/schedule/index.html</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/index.html</loc>
+    
+    <lastmod>2024-03-16</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/08/22/env%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F%E8%AE%BE%E7%BD%AE%E9%87%8D%E5%A4%8D/</loc>
+    
+    <lastmod>2022-08-22</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/2022/08/21/%E5%A4%9A%E7%89%88%E6%9C%ACpython%E7%9A%84%E5%86%B2%E7%AA%81/</loc>
+    
+    <lastmod>2022-08-22</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+
+  <url>
+    <loc>https://mark-cx.github.io/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E9%80%BB%E8%BE%91%E6%80%9D%E7%BB%B4/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/hexo/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/GitHub/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E5%9C%A8%E7%BA%BF%E9%83%A8%E7%BD%B2/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/next/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E6%A0%87%E7%AD%BE1/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E6%A0%87%E7%AD%BE2/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E6%A0%87%E7%AD%BE3/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/linux/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E5%91%BD%E4%BB%A4/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E7%BB%8F%E9%AA%8C/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E7%8E%AF%E5%A2%83/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/compile/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/brun/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/shell/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/env/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/%E5%9B%BE%E5%BA%8A/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/picgo/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/github/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/python/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/tool/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/tags/VMware/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/%E5%B7%A5%E5%85%B7%E3%80%81%E9%80%BB%E8%BE%91%E7%90%86%E8%A7%A3/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/web%E5%89%8D%E7%AB%AF/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/%E5%8D%9A%E5%AE%A2%E6%A8%A1%E6%9D%BF/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/linux-%E5%91%BD%E4%BB%A4/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/%E7%BB%8F%E9%AA%8C%E4%B9%8B%E8%B0%88/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/shell/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/%E5%9B%BE%E5%BA%8A/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/Python/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://mark-cx.github.io/categories/%E5%B7%A5%E5%85%B7%E4%BD%BF%E7%94%A8/</loc>
+    <lastmod>2024-03-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+</urlset>
