@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="baidu-site-verification" content="code-cJHgDLupm4">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha256-DfWjNxDkM94fVBWx1H5BMMp0Zq7luBlV8QRcSES7s+0=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"mark-cx.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.12.1","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":true,"comments":{"style":"tabs","active":"changyan","storage":true,"lazyload":false,"nav":{"changyan":{"order":-1}},"activeClass":"changyan"},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="这是一个典型的“数据面瓶颈定位 + 控制面一致性验证”的问题。你现在的场景（MTK + 外挂 switch + USXGMII + 多速率 PHY）属于中高复杂度链路，调优必须有体系，否则很容易误判。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Phy 与 switch 的性能调优手段的分析步骤">
+<meta property="og:url" content="https://mark-cx.github.io/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/index.html">
+<meta property="og:site_name" content="玄牝之门">
+<meta property="og:description" content="这是一个典型的“数据面瓶颈定位 + 控制面一致性验证”的问题。你现在的场景（MTK + 外挂 switch + USXGMII + 多速率 PHY）属于中高复杂度链路，调优必须有体系，否则很容易误判。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-03-31T00:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-01T09:09:35.716Z">
+<meta property="article:author" content="Li Xiang">
+<meta property="article:tag" content="phy">
+<meta property="article:tag" content="switch">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://mark-cx.github.io/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://mark-cx.github.io/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/","path":"2026/03/31/Phy与switch的性能调优手段的分析步骤/","title":"Phy 与 switch 的性能调优手段的分析步骤"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Phy 与 switch 的性能调优手段的分析步骤 | 玄牝之门</title>
+  
+
+
+
+
+<style>
+  /* ---------------------------
+   * Music Player
+   * --------------------------- */
+  .music-player-widget {
+    margin-top: 16px;
+    padding: 12px 12px 14px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 10px;
+    background: var(--card-bg-color, rgba(0, 0, 0, 0.03));
+  }
+
+  .music-player-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .music-player-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .music-player-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    background: transparent;
+    color: var(--text-color, inherit);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .music-player-toggle:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .music-player-select {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: var(--menu-item-bg-color, transparent);
+    color: var(--text-color, inherit);
+  }
+
+  .music-player-progress {
+    margin-top: 8px;
+  }
+
+  .music-player-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 6px;
+    gap: 10px;
+  }
+
+  .music-player-seek {
+    width: 100%;
+  }
+
+  /* ---------------------------
+   * AI Assistant
+   * --------------------------- */
+  .ai-assistant-toggle {
+    position: fixed;
+    right: 20px;
+    z-index: 9999;
+    top: 80px;
+    bottom: auto;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: var(--theme-color, #42b983);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    font-weight: 600;
+  }
+
+  .ai-assistant-toggle:hover {
+    filter: brightness(0.98);
+  }
+
+  .ai-assistant-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 10000;
+    display: none;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .ai-assistant-modal.is-open {
+    display: flex;
+  }
+
+  .ai-assistant-panel--link {
+    height: auto;
+    min-height: 0;
+    max-height: 360px;
+  }
+
+  .ai-assistant-link-body {
+    padding: 16px 12px 18px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ai-assistant-link-hint {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    opacity: 0.9;
+  }
+
+  .ai-assistant-link-open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: var(--theme-color, #42b983);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    text-align: center;
+  }
+
+  .ai-assistant-link-open:hover {
+    filter: brightness(0.98);
+  }
+
+  .ai-assistant-panel--hybrid .ai-assistant-link-body--strip {
+    flex: 0 0 auto;
+    padding: 10px 12px 12px;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.22);
+    gap: 10px;
+  }
+
+  .ai-assistant-panel--hybrid .ai-assistant-link-body--strip .ai-assistant-link-hint {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .ai-assistant-panel--hybrid .ai-assistant-messages {
+    min-height: 0;
+  }
+
+  .ai-assistant-panel {
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 560px;
+    max-height: calc(100vh - 160px);
+    margin-right: 20px;
+    margin-top: 132px;
+    margin-bottom: auto;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--content-bg-color, #fff);
+    color: var(--text-color, inherit);
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ai-assistant-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 12px;
+    background: var(--card-bg-color, rgba(0, 0, 0, 0.03));
+    border-bottom: 1px solid rgba(127, 127, 127, 0.22);
+  }
+
+  .ai-assistant-title {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .ai-assistant-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  .ai-assistant-messages {
+    flex: 1 1 auto;
+    padding: 12px 12px;
+    overflow: auto;
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .ai-msg {
+    margin-bottom: 12px;
+  }
+
+  .ai-msg .ai-bubble {
+    display: inline-block;
+    padding: 10px 10px;
+    border-radius: 12px;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+    border: 1px solid rgba(127, 127, 127, 0.15);
+  }
+
+  .ai-msg-user {
+    text-align: right;
+  }
+
+  .ai-msg-user .ai-bubble {
+    background: rgba(66, 185, 131, 0.12);
+    border-color: rgba(66, 185, 131, 0.35);
+  }
+
+  .ai-msg-assistant .ai-bubble {
+    text-align: left;
+    background: transparent;
+  }
+
+  .ai-assistant-input-area {
+    flex: 0 0 auto;
+    padding: 12px 12px;
+    border-top: 1px solid rgba(127, 127, 127, 0.22);
+    background: var(--card-bg-color, rgba(0, 0, 0, 0.03));
+  }
+
+  .ai-assistant-textarea {
+    width: 100%;
+    height: 92px;
+    resize: none;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: transparent;
+    color: inherit;
+    outline: none;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+
+  .ai-assistant-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .ai-assistant-send {
+    flex: 1;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: var(--theme-color, #42b983);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .ai-assistant-send:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .ai-assistant-clear {
+    width: 92px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+    font-weight: 600;
+  }
+</style>
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<link rel="alternate" href="/atom.xml" title="玄牝之门" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">玄牝之门</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">金乌栖北海，龙虎掌中花。</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-schedule"><a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>日程表</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.txt" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E6%95%B4%E4%BD%93%E6%96%B9%E6%B3%95%E8%AE%BA%EF%BC%88%E5%85%88%E5%BB%BA%E7%AB%8B%E6%A1%86%E6%9E%B6%EF%BC%89"><span class="nav-number">1.</span> <span class="nav-text">一、整体方法论（先建立框架）</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8C%E3%80%81Step-1%EF%BC%9A%E7%89%A9%E7%90%86%E5%B1%82%EF%BC%88PHY%EF%BC%89%E2%80%94%E2%80%94%E5%85%88%E7%A1%AE%E8%AE%A4%E9%93%BE%E8%B7%AF%E8%B4%A8%E9%87%8F"><span class="nav-number">2.</span> <span class="nav-text">二、Step 1：物理层（PHY）—— 先确认链路质量</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%9C%8B%E5%8D%8F%E5%95%86%E7%BB%93%E6%9E%9C%EF%BC%88%E4%BD%A0%E5%B7%B2%E7%BB%8F%E5%81%9A%E4%BA%86%EF%BC%89"><span class="nav-number">2.1.</span> <span class="nav-text">1) 看协商结果（你已经做了）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E7%9C%8B-PHY-%E8%AF%AF%E7%A0%81-x2F-%E5%81%A5%E5%BA%B7%E7%8A%B6%E6%80%81"><span class="nav-number">2.2.</span> <span class="nav-text">2) 看 PHY 误码 &#x2F; 健康状态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-MDIO-%E5%AF%84%E5%AD%98%E5%99%A8%E7%BA%A7%E5%88%86%E6%9E%90%EF%BC%88%E8%BF%9B%E9%98%B6%EF%BC%89"><span class="nav-number">2.3.</span> <span class="nav-text">3) MDIO 寄存器级分析（进阶）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%89%E3%80%81Step-2%EF%BC%9ASerDes-x2F-PCS%EF%BC%88%E5%85%B3%E9%94%AE%E7%93%B6%E9%A2%88%E7%82%B9%EF%BC%89"><span class="nav-number">3.</span> <span class="nav-text">三、Step 2：SerDes &#x2F; PCS（关键瓶颈点）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-PCS-%E6%98%AF%E5%90%A6-lock"><span class="nav-number">3.1.</span> <span class="nav-text">1) PCS 是否 lock</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%98%AF%E5%90%A6%E5%8F%91%E7%94%9F%E9%80%9F%E7%8E%87-fallback"><span class="nav-number">3.2.</span> <span class="nav-text">2) 是否发生速率 fallback</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-FEC%EF%BC%88%E5%89%8D%E5%90%91%E7%BA%A0%E9%94%99%EF%BC%89"><span class="nav-number">3.3.</span> <span class="nav-text">3) FEC（前向纠错）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9B%9B%E3%80%81Step-3%EF%BC%9AMAC-%E5%B1%82%EF%BC%88%E6%9C%80%E5%AE%B9%E6%98%93%E8%A2%AB%E5%BF%BD%E7%95%A5%EF%BC%89"><span class="nav-number">4.</span> <span class="nav-text">四、Step 3：MAC 层（最容易被忽略）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%B5%81%E6%8E%A7%EF%BC%88%E4%BD%A0%E5%BD%93%E5%89%8D%E5%B7%B2%E7%BB%8F%E8%B8%A9%E5%9D%91%EF%BC%89"><span class="nav-number">4.1.</span> <span class="nav-text">1) 流控（你当前已经踩坑）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-MAC-FIFO-x2F-%E9%98%9F%E5%88%97"><span class="nav-number">4.2.</span> <span class="nav-text">2) MAC FIFO &#x2F; 队列</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%94%E3%80%81Step-4%EF%BC%9ASwitch%EF%BC%88YT9224-x2F-MTK-switch%EF%BC%89"><span class="nav-number">5.</span> <span class="nav-text">五、Step 4：Switch（YT9224 &#x2F; MTK switch）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%AB%AF%E5%8F%A3%E9%80%9F%E7%8E%87%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">5.1.</span> <span class="nav-text">1) 端口速率一致性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Switch-buffer"><span class="nav-number">5.2.</span> <span class="nav-text">2) Switch buffer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Port-queue-x2F-%E8%B0%83%E5%BA%A6"><span class="nav-number">5.3.</span> <span class="nav-text">3) Port queue &#x2F; 调度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Switch-lt-gt-CPU-%E9%93%BE%E8%B7%AF"><span class="nav-number">5.4.</span> <span class="nav-text">4) Switch &lt;-&gt; CPU 链路</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%AD%E3%80%81Step-5%EF%BC%9A%E6%95%B0%E6%8D%AE%E9%9D%A2%E6%B5%8B%E8%AF%95%EF%BC%88iperf3-%E6%96%B9%E6%B3%95%E8%AE%BA%EF%BC%89"><span class="nav-number">6.</span> <span class="nav-text">六、Step 5：数据面测试（iperf3 方法论）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%8D%95%E5%90%91"><span class="nav-number">6.1.</span> <span class="nav-text">1) 单向</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E5%8F%8C%E5%90%91%EF%BC%88%E4%BD%A0%E4%B9%8B%E5%89%8D%E9%97%AE%E9%A2%98%EF%BC%89"><span class="nav-number">6.2.</span> <span class="nav-text">2) 双向（你之前问题）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%A4%9A%E6%B5%81"><span class="nav-number">6.3.</span> <span class="nav-text">3) 多流</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%83%E3%80%81Step-6%EF%BC%9ACPU-amp-%E4%B8%AD%E6%96%AD"><span class="nav-number">7.</span> <span class="nav-text">七、Step 6：CPU &amp; 中断</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E7%9C%8B-CPU"><span class="nav-number">7.1.</span> <span class="nav-text">1) 看 CPU</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E7%9C%8B%E4%B8%AD%E6%96%AD%E5%88%86%E5%B8%83"><span class="nav-number">7.2.</span> <span class="nav-text">2) 看中断分布</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-RPS-x2F-XPS"><span class="nav-number">7.3.</span> <span class="nav-text">3) RPS&#x2F;XPS</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%AB%E3%80%81Step-7%EF%BC%9A%E9%A9%B1%E5%8A%A8-amp-%E5%86%85%E6%A0%B8%EF%BC%88%E4%BD%A0%E8%BF%99%E4%B8%AA%E5%BE%88%E5%85%B3%E9%94%AE%EF%BC%89"><span class="nav-number">8.</span> <span class="nav-text">八、Step 7：驱动 &amp; 内核（你这个很关键）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-phylink-%E7%8A%B6%E6%80%81"><span class="nav-number">8.1.</span> <span class="nav-text">1) phylink 状态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%98%AF%E5%90%A6%E4%BD%BF%E7%94%A8%E7%A1%AC%E4%BB%B6-offload"><span class="nav-number">8.2.</span> <span class="nav-text">2) 是否使用硬件 offload</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-DSA-x2F-swconfig-%E5%B7%AE%E5%BC%82"><span class="nav-number">8.3.</span> <span class="nav-text">3) DSA &#x2F;swconfig 差异</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B9%9D%E3%80%81%E5%85%B8%E5%9E%8B%E9%97%AE%E9%A2%98%E6%A8%A1%E5%BC%8F%EF%BC%88%E7%9B%B4%E6%8E%A5%E5%AF%B9%E5%8F%B7%E5%85%A5%E5%BA%A7%EF%BC%89"><span class="nav-number">9.</span> <span class="nav-text">九、典型问题模式（直接对号入座）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%BC%8F-1%EF%BC%88%E4%BD%A0%E5%BD%93%E5%89%8D%E6%83%85%E5%86%B5%EF%BC%89"><span class="nav-number">9.1.</span> <span class="nav-text">模式 1（你当前情况）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%BC%8F-2"><span class="nav-number">9.2.</span> <span class="nav-text">模式 2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%BC%8F-3"><span class="nav-number">9.3.</span> <span class="nav-text">模式 3</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8D%81%E3%80%81%E6%A0%87%E5%87%86%E8%B0%83%E4%BC%98%E6%B5%81%E7%A8%8B%EF%BC%88%E5%BB%BA%E8%AE%AE%E4%BD%A0%E7%85%A7%E8%BF%99%E4%B8%AA%E8%B5%B0%EF%BC%89"><span class="nav-number">10.</span> <span class="nav-text">十、标准调优流程（建议你照这个走）</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8D%81%E4%B8%80%E3%80%81%E7%BB%99%E4%BD%A0%E7%9A%84%E9%92%88%E5%AF%B9%E6%80%A7%E5%BB%BA%E8%AE%AE%EF%BC%88%E7%BB%93%E5%90%88%E4%BD%A0%E7%8E%B0%E7%8A%B6%EF%BC%89"><span class="nav-number">11.</span> <span class="nav-text">十一、给你的针对性建议（结合你现状）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%85%88%E8%A7%A3%E5%86%B3%E6%B5%81%E6%8E%A7"><span class="nav-number">11.1.</span> <span class="nav-text">1) 先解决流控</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E5%86%8D%E6%9F%A5%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF-10G"><span class="nav-number">11.2.</span> <span class="nav-text">2) 再查为什么不是 10G</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93%EF%BC%88%E4%B8%80%E5%8F%A5%E8%AF%9D%EF%BC%89"><span class="nav-number">12.</span> <span class="nav-text">总结（一句话）</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Li Xiang</p>
+  <div class="site-description" itemprop="description">玄玄时，密密行，冥冥中，幽幽曲。</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">27</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/Mark-cx" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;Mark-cx" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:209332274@qq.com" title="E-Mail → mailto:209332274@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/" title="Weibo → https:&#x2F;&#x2F;weibo.com" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://github.com/Mark-cx/Blog/new/main/source/_posts" title="Write Post → https:&#x2F;&#x2F;github.com&#x2F;Mark-cx&#x2F;Blog&#x2F;new&#x2F;main&#x2F;source&#x2F;_posts" rel="noopener" target="_blank"><i class="fa fa-paint-brush fa-fw"></i>Write Post</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll site-overview-item animated">
+    <div class="links-of-blogroll-title"><i class="fa fa-globe fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://www.bing.com/" title="http:&#x2F;&#x2F;www.bing.com" rel="noopener" target="_blank">Bing</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://markdown.com.cn/" title="https:&#x2F;&#x2F;markdown.com.cn" rel="noopener" target="_blank">Markdown</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://www.bilibili.com/" title="https:&#x2F;&#x2F;www.bilibili.com" rel="noopener" target="_blank">bilibili</a>
+        </li>
+    </ul>
+  </div>
+<div class="music-player-widget" id="music-player" aria-label="Music Player">
+  <div class="music-player-title">Music Player</div>
+
+  <div class="music-player-controls">
+    <button type="button" class="music-player-toggle js-music-toggle" aria-label="Play / Pause">
+      <i class="fa fa-play" aria-hidden="true"></i>
+    </button>
+
+    <select class="music-player-select js-music-select" aria-label="Select Track">
+      <option value="">No tracks</option>
+    </select>
+  </div>
+
+  <div class="music-player-progress">
+    <input class="music-player-seek js-music-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+    <div class="music-player-time">
+      <span class="js-music-current">0:00</span>
+      <span class="js-music-divider">/</span>
+      <span class="js-music-duration">0:00</span>
+    </div>
+  </div>
+
+  <audio class="music-player-audio js-music-audio" preload="metadata"></audio>
+
+  <script class="next-config" data-name="music_player" type="application/json">{"enable":true,"title":"Music Player","playlist":null}</script>
+</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/Mark-cx" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://mark-cx.github.io/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Li Xiang">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="玄牝之门">
+      <meta itemprop="description" content="玄玄时，密密行，冥冥中，幽幽曲。">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Phy 与 switch 的性能调优手段的分析步骤 | 玄牝之门">
+      <meta itemprop="description" content="这是一个典型的“数据面瓶颈定位 + 控制面一致性验证”的问题。你现在的场景（MTK + 外挂 switch + USXGMII + 多速率 PHY）属于中高复杂度链路，调优必须有体系，否则很容易误判。">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Phy 与 switch 的性能调优手段的分析步骤<a href="https://github.com/Mark-cx/Blog/edit/main/source/_posts/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4.md" class="post-edit-link" title="编辑" rel="noopener" target="_blank"><i class="fa fa-pen-nib"></i></a>
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2026-03-31 00:00:00" itemprop="dateCreated datePublished" datetime="2026-03-31T00:00:00+00:00">2026-03-31</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2026-04-01 09:09:35" itemprop="dateModified" datetime="2026-04-01T09:09:35+00:00">2026-04-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E9%A9%B1%E5%8A%A8%E8%B0%83%E8%AF%95/" itemprop="url" rel="index"><span itemprop="name">驱动调试</span></a>
+        </span>
+    </span>
+
+  
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Changyan：</span>
+    
+    <a title="Phy 与 switch 的性能调优手段的分析步骤" href="/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/#SOHUCS" itemprop="discussionUrl">
+      <span id="sourceId::921a4f2cb7793e22427416b545cd2624" class="cy_cmt_count" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+</div>
+
+            <div class="post-description">这是一个典型的“数据面瓶颈定位 + 控制面一致性验证”的问题。你现在的场景（MTK + 外挂 switch + USXGMII + 多速率 PHY）属于中高复杂度链路，调优必须有体系，否则很容易误判。</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="一、整体方法论（先建立框架）"><a href="#一、整体方法论（先建立框架）" class="headerlink" title="一、整体方法论（先建立框架）"></a>一、整体方法论（先建立框架）</h1><p>核心思路：</p>
+<p><code>物理层 -&gt; PCS/SerDes -&gt; MAC -&gt; Switch -&gt; 队列/流控 -&gt; CPU -&gt; 协议栈</code></p>
+<p>每一层必须回答 3 个问题：</p>
+<ul>
+<li>是否正常工作（功能）</li>
+<li>是否跑满（性能）</li>
+<li>是否匹配（配置一致性）</li>
+</ul>
+<h1 id="二、Step-1：物理层（PHY）——先确认链路质量"><a href="#二、Step-1：物理层（PHY）——先确认链路质量" class="headerlink" title="二、Step 1：物理层（PHY）——先确认链路质量"></a>二、Step 1：物理层（PHY）—— 先确认链路质量</h1><h2 id="1-看协商结果（你已经做了）"><a href="#1-看协商结果（你已经做了）" class="headerlink" title="1) 看协商结果（你已经做了）"></a>1) 看协商结果（你已经做了）</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关注：</p>
+<ul>
+<li><code>Speed</code>（是否降速）</li>
+<li><code>Duplex</code>（必须 <code>full</code>）</li>
+<li><code>Auto-neg</code>（是否开启）</li>
+</ul>
+<h2 id="2-看-PHY-误码-x2F-健康状态"><a href="#2-看-PHY-误码-x2F-健康状态" class="headerlink" title="2) 看 PHY 误码 / 健康状态"></a>2) 看 PHY 误码 / 健康状态</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool -S ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>重点字段（不同 PHY 名字不同）：</p>
+<ul>
+<li><code>crc errors</code></li>
+<li><code>symbol errors</code></li>
+<li><code>alignment errors</code></li>
+</ul>
+<p>判断：</p>
+<ul>
+<li>有误码 -&gt; 物理层问题（线材 / 模块 / SI）</li>
+<li>无误码 -&gt; 进入下一层</li>
+</ul>
+<h2 id="3-MDIO-寄存器级分析（进阶）"><a href="#3-MDIO-寄存器级分析（进阶）" class="headerlink" title="3) MDIO 寄存器级分析（进阶）"></a>3) MDIO 寄存器级分析（进阶）</h2><p>（特别是你用 RTL8261 / YT 系列）</p>
+<p>重点看：</p>
+<ul>
+<li>Clause45 AN 状态</li>
+<li> Link partner ability</li>
+<li>FEC 状态</li>
+</ul>
+<h1 id="三、Step-2：SerDes-x2F-PCS（关键瓶颈点）"><a href="#三、Step-2：SerDes-x2F-PCS（关键瓶颈点）" class="headerlink" title="三、Step 2：SerDes / PCS（关键瓶颈点）"></a>三、Step 2：SerDes / PCS（关键瓶颈点）</h1><p>你是：</p>
+<p><code>USXGMII / 10GBase-KR / SGMII</code></p>
+<p>这是最容易出性能问题的层。</p>
+<p>关键检查点：</p>
+<h2 id="1-PCS-是否-lock"><a href="#1-PCS-是否-lock" class="headerlink" title="1) PCS 是否 lock"></a>1) PCS 是否 lock</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dmesg | grep -i pcs</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-是否发生速率-fallback"><a href="#2-是否发生速率-fallback" class="headerlink" title="2) 是否发生速率 fallback"></a>2) 是否发生速率 fallback</h2><p>典型现象：</p>
+<ul>
+<li>支持 10G -&gt; 实际 1G</li>
+</ul>
+<p>原因：</p>
+<ul>
+<li>Training 失败</li>
+<li> AN 不匹配</li>
+<li> FEC 不一致</li>
+</ul>
+<h2 id="3-FEC（前向纠错）"><a href="#3-FEC（前向纠错）" class="headerlink" title="3) FEC（前向纠错）"></a>3) FEC（前向纠错）</h2><p>10G 链路常见：</p>
+<ul>
+<li>RS-FEC</li>
+<li>BASE-R FEC</li>
+</ul>
+<p>不匹配会：</p>
+<ul>
+<li>丢包</li>
+<li>重传</li>
+<li>吞吐下降</li>
+</ul>
+<h1 id="四、Step-3：MAC-层（最容易被忽略）"><a href="#四、Step-3：MAC-层（最容易被忽略）" class="headerlink" title="四、Step 3：MAC 层（最容易被忽略）"></a>四、Step 3：MAC 层（最容易被忽略）</h1><h2 id="1-流控（你当前已经踩坑）"><a href="#1-流控（你当前已经踩坑）" class="headerlink" title="1) 流控（你当前已经踩坑）"></a>1) 流控（你当前已经踩坑）</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool -a ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关键：</p>
+<ul>
+<li><code>RX/TX pause</code> 是否开启</li>
+</ul>
+<p>判断：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无流控</td>
+<td> TX 掉速 / 丢包</td>
+</tr>
+<tr>
+<td>单向流控</td>
+<td>严重不对称</td>
+</tr>
+<tr>
+<td>双向流控</td>
+<td>最稳定</td>
+</tr>
+</tbody></table>
+<h2 id="2-MAC-FIFO-x2F-队列"><a href="#2-MAC-FIFO-x2F-队列" class="headerlink" title="2) MAC FIFO / 队列"></a>2) MAC FIFO / 队列</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool -S ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关注：</p>
+<ul>
+<li><code>tx_fifo_errors</code></li>
+<li><code>rx_fifo_errors</code></li>
+<li><code>queue drops</code></li>
+</ul>
+<h1 id="五、Step-4：Switch（YT9224-x2F-MTK-switch）"><a href="#五、Step-4：Switch（YT9224-x2F-MTK-switch）" class="headerlink" title="五、Step 4：Switch（YT9224 / MTK switch）"></a>五、Step 4：Switch（YT9224 / MTK switch）</h1><p>这是你当前架构的核心性能瓶颈点。</p>
+<h2 id="1-端口速率一致性"><a href="#1-端口速率一致性" class="headerlink" title="1) 端口速率一致性"></a>1) 端口速率一致性</h2><p>必须保证：</p>
+<ul>
+<li>CPU 口 = 10G</li>
+<li> 上行口 = 10G</li>
+<li> 下行口 &gt;= 瓶颈</li>
+</ul>
+<p>否则：</p>
+<ul>
+<li>内部拥塞</li>
+</ul>
+<h2 id="2-Switch-buffer"><a href="#2-Switch-buffer" class="headerlink" title="2) Switch buffer"></a>2) Switch buffer</h2><p>YT9224 特点：</p>
+<ul>
+<li>Buffer 有限</li>
+<li>无流控时容易爆</li>
+</ul>
+<h2 id="3-Port-queue-x2F-调度"><a href="#3-Port-queue-x2F-调度" class="headerlink" title="3) Port queue / 调度"></a>3) Port queue / 调度</h2><p>看：</p>
+<ul>
+<li>是否启用 QoS</li>
+<li>WRR / SP 调度</li>
+</ul>
+<h2 id="4-Switch-lt-gt-CPU-链路"><a href="#4-Switch-lt-gt-CPU-链路" class="headerlink" title="4) Switch <-> CPU 链路"></a>4) Switch &lt;-&gt; CPU 链路</h2><p>你 DTS：</p>
+<p><code>fixed-link 10G</code></p>
+<p>风险：</p>
+<ul>
+<li>实际没跑到 10G（但内核认为是 10G）</li>
+<li>导致严重丢包</li>
+</ul>
+<h1 id="六、Step-5：数据面测试（iperf3-方法论）"><a href="#六、Step-5：数据面测试（iperf3-方法论）" class="headerlink" title="六、Step 5：数据面测试（iperf3 方法论）"></a>六、Step 5：数据面测试（iperf3 方法论）</h1><p>正确测试方式：</p>
+<h2 id="1-单向"><a href="#1-单向" class="headerlink" title="1) 单向"></a>1) 单向</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iperf3 -c xxx</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-双向（你之前问题）"><a href="#2-双向（你之前问题）" class="headerlink" title="2) 双向（你之前问题）"></a>2) 双向（你之前问题）</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iperf3 -c xxx -d</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="3-多流"><a href="#3-多流" class="headerlink" title="3) 多流"></a>3) 多流</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iperf3 -c xxx -P 4</span><br></pre></td></tr></tbody></table></figure>
+
+<p>判断逻辑：</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td> RX 正常，TX 低</td>
+<td>无流控</td>
+</tr>
+<tr>
+<td>双向都低</td>
+<td>带宽瓶颈</td>
+</tr>
+<tr>
+<td>抖动大</td>
+<td> Buffer 不足</td>
+</tr>
+</tbody></table>
+<h1 id="七、Step-6：CPU-amp-中断"><a href="#七、Step-6：CPU-amp-中断" class="headerlink" title="七、Step 6：CPU &amp; 中断"></a>七、Step 6：CPU &amp; 中断</h1><h2 id="1-看-CPU"><a href="#1-看-CPU" class="headerlink" title="1) 看 CPU"></a>1) 看 CPU</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">top</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-看中断分布"><a href="#2-看中断分布" class="headerlink" title="2) 看中断分布"></a>2) 看中断分布</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cat</span> /proc/interrupts</span><br></pre></td></tr></tbody></table></figure>
+
+<p>判断：</p>
+<ul>
+<li>是否单核打满</li>
+</ul>
+<h2 id="3-RPS-x2F-XPS"><a href="#3-RPS-x2F-XPS" class="headerlink" title="3) RPS/XPS"></a>3) RPS/XPS</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cat</span> /sys/class/net/ethX/queues/rx-*/rps_cpus</span><br></pre></td></tr></tbody></table></figure>
+
+<h1 id="八、Step-7：驱动-amp-内核（你这个很关键）"><a href="#八、Step-7：驱动-amp-内核（你这个很关键）" class="headerlink" title="八、Step 7：驱动 &amp; 内核（你这个很关键）"></a>八、Step 7：驱动 &amp; 内核（你这个很关键）</h1><p>你是：</p>
+<ul>
+<li>MTK <code>mtk_eth</code></li>
+<li><code>phylink</code></li>
+<li>外挂 switch</li>
+</ul>
+<p>关键检查点：</p>
+<h2 id="1-phylink-状态"><a href="#1-phylink-状态" class="headerlink" title="1) phylink 状态"></a>1) phylink 状态</h2><p>是否正确传递：</p>
+<ul>
+<li><code>speed</code></li>
+<li><code>pause</code></li>
+<li><code>duplex</code></li>
+</ul>
+<h2 id="2-是否使用硬件-offload"><a href="#2-是否使用硬件-offload" class="headerlink" title="2) 是否使用硬件 offload"></a>2) 是否使用硬件 offload</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool -k ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="3-DSA-x2F-swconfig-差异"><a href="#3-DSA-x2F-swconfig-差异" class="headerlink" title="3) DSA / swconfig 差异"></a>3) DSA /swconfig 差异</h2><ul>
+<li><code>swconfig</code> -&gt; CPU 压力大</li>
+<li><code>DSA</code> -&gt; 更好</li>
+</ul>
+<h1 id="九、典型问题模式（直接对号入座）"><a href="#九、典型问题模式（直接对号入座）" class="headerlink" title="九、典型问题模式（直接对号入座）"></a>九、典型问题模式（直接对号入座）</h1><h2 id="模式-1（你当前情况）"><a href="#模式-1（你当前情况）" class="headerlink" title="模式 1（你当前情况）"></a>模式 1（你当前情况）</h2><ul>
+<li>RX 1.7G</li>
+<li>TX 200M</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>流控未生效</li>
+</ul>
+<h2 id="模式-2"><a href="#模式-2" class="headerlink" title="模式 2"></a>模式 2</h2><ul>
+<li>只跑 1G</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>AN / PCS / 模块不匹配</li>
+</ul>
+<h2 id="模式-3"><a href="#模式-3" class="headerlink" title="模式 3"></a>模式 3</h2><ul>
+<li>双向都低</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>CPU /switch 瓶颈</li>
+</ul>
+<h1 id="十、标准调优流程（建议你照这个走）"><a href="#十、标准调优流程（建议你照这个走）" class="headerlink" title="十、标准调优流程（建议你照这个走）"></a>十、标准调优流程（建议你照这个走）</h1><ol>
+<li><code>ethtool</code> -&gt; 确认速率</li>
+<li><code>ethtool -a</code> -&gt; 确认流控</li>
+<li> PHY 寄存器 -&gt; 确认 AN/FEC</li>
+<li><code>dmesg</code> -&gt; 看 link 变化</li>
+<li><code>iperf3</code> -&gt; 单 / 双向验证</li>
+<li> switch port -&gt; 确认无瓶颈</li>
+<li> CPU / 中断 -&gt; 排除软件瓶颈</li>
+</ol>
+<h1 id="十一、给你的针对性建议（结合你现状）"><a href="#十一、给你的针对性建议（结合你现状）" class="headerlink" title="十一、给你的针对性建议（结合你现状）"></a>十一、给你的针对性建议（结合你现状）</h1><p>你当前已经确认：</p>
+<ul>
+<li>Link OK</li>
+<li> 只有 1G</li>
+<li>Flow control OFF</li>
+</ul>
+<p>下一步优先级：</p>
+<h2 id="1-先解决流控"><a href="#1-先解决流控" class="headerlink" title="1) 先解决流控"></a>1) 先解决流控</h2><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ethtool -A eth2 rx on tx on</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-再查为什么不是-10G"><a href="#2-再查为什么不是-10G" class="headerlink" title="2) 再查为什么不是 10G"></a>2) 再查为什么不是 10G</h2><p>重点看：</p>
+<ul>
+<li>对端设备</li>
+<li> SFP 模块</li>
+<li> USXGMII / PHY 配置</li>
+</ul>
+<h1 id="总结（一句话）"><a href="#总结（一句话）" class="headerlink" title="总结（一句话）"></a>总结（一句话）</h1><p>有线 PHY + switch 调优的核心不是提速，而是保证每一层（PHY -&gt; PCS -&gt; MAC -&gt; Switch）能力一致且流控闭环成立，否则一定出现你现在这种带宽严重不对称的问题。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/phy/" rel="tag"># phy</a>
+              <a href="/tags/switch/" rel="tag"># switch</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2026/03/23/AI%E7%94%9F%E6%88%90%E7%9A%84github_action_hexo%E9%83%A8%E7%BD%B2/" rel="prev" title="嵌入式程序员前卫博客主题部署指南">
+                  <i class="fa fa-chevron-left"></i> 嵌入式程序员前卫博客主题部署指南
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2026/04/01/%E8%AE%B0%E5%BD%95linux%E4%B8%80%E4%BA%9B%E6%9F%A5%E8%AF%A2%E6%8C%87%E4%BB%A4/" rel="next" title="linux 操作指令">
+                  linux 操作指令 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments" id="SOHUCS" sid="921a4f2cb7793e22427416b545cd2624"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Li Xiang</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.0/search.js" integrity="sha256-vXZMYLEqsROAXkEw93GGIvaB2ab+QW6w3+1ahD9nXXA=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+
+  
+
+
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quicklink/2.2.0/quicklink.umd.js" integrity="sha256-4kQf9z5ntdQrzsBC3YSHnEz02Z9C1UeW/E9OgnvlzSY=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="quicklink" type="application/json">{"enable":true,"home":"enable","archive":"enable","delay":true,"timeout":3000,"priority":true,"url":"https://mark-cx.github.io/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/"}</script>
+  <script src="/js/third-party/quicklink.js"></script>
+<script class="next-config" data-name="changyan" type="application/json">{"enable":true,"appid":"cywaVDrOB","appkey":"31fc70e63d3da6069799a3457421325f"}</script>
+<script src="/js/third-party/comments/changyan.js"></script>
+<button type="button" class="ai-assistant-toggle" id="ai-assistant-toggle" aria-label="AI Assistant">
+  AI Assistant
+</button>
+
+<div class="ai-assistant-modal" id="ai-assistant-modal" role="dialog" aria-modal="true" aria-labelledby="ai-assistant-title">
+  <div class="ai-assistant-panel ai-assistant-panel--hybrid" role="document">
+    <div class="ai-assistant-header">
+      <div class="ai-assistant-title" id="ai-assistant-title">AI Assistant</div>
+      <button type="button" class="ai-assistant-close" id="ai-assistant-close" aria-label="Close">
+        <i class="fa fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="ai-assistant-link-body ai-assistant-link-body--strip">
+      <p class="ai-assistant-link-hint">官网完整功能请点此跳转。下方对话在 GitHub Pages 上受浏览器跨域限制，须用 Cloudflare Worker 代理（见仓库 workers/ 目录说明）。</p>
+      <a class="ai-assistant-link-open" id="ai-assistant-link-open" href="https://www.qianwen.com/" target="_blank" rel="noopener noreferrer">打开通义千问</a>
+    </div>
+    <div class="ai-assistant-messages" id="ai-assistant-messages"></div>
+    <div class="ai-assistant-input-area">
+      <textarea class="ai-assistant-textarea" id="ai-assistant-input" placeholder="Ask me anything..."></textarea>
+      <div class="ai-assistant-actions">
+        <button type="button" class="ai-assistant-send" id="ai-assistant-send" disabled>
+          Send
+        </button>
+        <button type="button" class="ai-assistant-clear" id="ai-assistant-clear">
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script class="next-config" data-name="ai_assistant" type="application/json">{"enable":true,"mode":"hybrid","link_url":"https://www.qianwen.com/","link_label":"打开通义千问","link_hint":"官网完整功能请点此跳转。下方对话在 GitHub Pages 上受浏览器跨域限制，须用 Cloudflare Worker 代理（见仓库 workers/ 目录说明）。","position":"top-right","button_text":"AI Assistant","placeholder":"Ask me anything...","endpoint":"https://mark-cx-blog-maas-proxy.lixiang123bb.workers.dev/","model":"qwen-turbo","system_prompt":"You are a helpful assistant.","temperature":0.7,"history_turns":6,"authorization":""}</script><script src="/js/music-player.js"></script><script src="/js/ai-assistant.js"></script>
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>

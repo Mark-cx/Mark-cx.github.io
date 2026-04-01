@@ -1,0 +1,809 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>linux 操作指令</title>
+    <url>/2026/04/01/%E8%AE%B0%E5%BD%95linux%E4%B8%80%E4%BA%9B%E6%9F%A5%E8%AF%A2%E6%8C%87%E4%BB%A4/</url>
+    <content><![CDATA[<h1 id="温度查询"><a href="#温度查询" class="headerlink" title="温度查询"></a>温度查询</h1><blockquote>
+<h2 id="最简单正确方式（直接用）"><a href="#最简单正确方式（直接用）" class="headerlink" title="最简单正确方式（直接用）"></a><strong>最简单正确方式（直接用）</strong></h2><p>cat /sys/devices/virtual/thermal/thermal_zone0/temp</p>
+<p>你当前输出：</p>
+<p>53557</p>
+<p>👉 换算：</p>
+<p>53.6°C<br>✅ <strong>一行命令（自动换算）</strong><br>awk ‘{printf “%.1f°C\n”, $1/1000}’ /sys/devices/virtual/thermal/thermal_zone0/temp</p>
+<p>输出：</p>
+<p>53.6°C<br><strong>⚠️ 但要确认是不是 CPU（建议做一次）</strong></p>
+<p>不同平台 thermal_zone0 不一定是 CPU（虽然你这个基本就是）。</p>
+<p>执行：</p>
+<p>cat /sys/devices/virtual/thermal/thermal_zone0/type</p>
+<p>常见结果：</p>
+<p>cpu<br>soc<br>mtktscpu</p>
+<p>👉 如果是这些，就可以确定：</p>
+<p>✅ 这是 CPU / SoC 温度</p>
+<p>✅ 更稳的写法（自动找 CPU 温度）<br>for z in /sys/devices/virtual/thermal/thermal_zone*; do<br> if grep -qiE “cpu|soc|mtk” z/type; then<br> echo -n “z: “<br> awk ‘{printf “%.1f°C\n”, 1/1000}’ z/temp<br> fi<br>done<br>✅ 如果要写程序（嵌入式常用）</p>
+<p>直接读：</p>
+<p>/sys/devices/virtual/thermal/thermal_zoneX/temp</p>
+<p>单位：</p>
+<p>m°C（毫摄氏度）</p>
+<h1 id="之所以是m°C的原因："><a href="#之所以是m°C的原因：" class="headerlink" title="之所以是m°C的原因："></a><strong>之所以是 m°C 的原因：</strong></h1><p>这个问题问得很关键，本质是在问：<strong>单位依据从哪里来，而不是 “经验猜测”</strong>。</p>
+<p>结论先给：</p>
+<blockquote>
+<p><strong>thermal_zoneX/temp 的单位是 m°C（毫摄氏度）是 Linux thermal framework 的接口规范定义的，不是某个平台私有约定。</strong></p>
+</blockquote>
+<p>下面给你从<strong>规范 → 内核实现 → 实际验证</strong>三层证据。</p>
+<hr>
+<h2 id="一、内核接口规范（根本依据）"><a href="#一、内核接口规范（根本依据）" class="headerlink" title="一、内核接口规范（根本依据）"></a>一、内核接口规范（根本依据）</h2><p>Linux 官方 thermal sysfs 文档明确规定：</p>
+<p>/sys/class/thermal/thermal_zone*/temp<br>单位：millidegree Celsius (m°C)</p>
+<p>也就是：</p>
+<p>1°C = 1000</p>
+<p>这是 <strong>ABI 级别约定（用户空间接口）</strong>，不是驱动随便定义的。</p>
+<hr>
+<h2 id="二、内核实现（代码层面）"><a href="#二、内核实现（代码层面）" class="headerlink" title="二、内核实现（代码层面）"></a>二、内核实现（代码层面）</h2><p>thermal 框架的核心接口：</p>
+<p>int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);</p>
+<p>这里的 <code>temp</code>：</p>
+<p>单位就是 m°C</p>
+<p>所有 thermal 驱动（包括 MTK）必须返回这个单位，否则就违反框架约定。</p>
+<hr>
+<h2 id="举个典型驱动逻辑（MTK）"><a href="#举个典型驱动逻辑（MTK）" class="headerlink" title="举个典型驱动逻辑（MTK）"></a>举个典型驱动逻辑（MTK）</h2><p>在 MTK thermal 驱动（如 mtktscpu）里，本质是：</p>
+<p>raw = read_adc (); // 原始值<br>temp = convert (raw); // 转换成 摄氏度<br>temp = temp * 1000; // 转成 m°C<br>return temp;</p>
+<p>👉 所以用户空间看到的一定是：</p>
+<p>整数 + m°C</p>
+<hr>
+<h2 id="三、你当前数据的“反证法验证”"><a href="#三、你当前数据的“反证法验证”" class="headerlink" title="三、你当前数据的“反证法验证”"></a>三、你当前数据的 “反证法验证”</h2><p>你读到：</p>
+<p>53557</p>
+<p>我们做三种假设：</p>
+<hr>
+<h3 id="❌-假设1：单位是-°C"><a href="#❌-假设1：单位是-°C" class="headerlink" title="❌ 假设1：单位是 °C"></a>❌ 假设 1：单位是 °C</h3><p>53557°C</p>
+<p>👉 不可能（芯片直接蒸发）</p>
+<hr>
+<h3 id="❌-假设2：单位是-0-1°C"><a href="#❌-假设2：单位是-0-1°C" class="headerlink" title="❌ 假设2：单位是 0.1°C"></a>❌ 假设 2：单位是 0.1°C</h3><p>5355.7°C</p>
+<p>👉 仍然不可能</p>
+<hr>
+<h3 id="✅-假设3：单位是-m°C"><a href="#✅-假设3：单位是-m°C" class="headerlink" title="✅ 假设3：单位是 m°C"></a>✅ 假设 3：单位是 m°C</h3><p>53557 / 1000 = 53.557°C</p>
+<p>👉 完全符合：</p>
+<ul>
+<li>SoC 正常温度范围</li>
+<li>你设备当前状态</li>
+</ul>
+<hr>
+<h2 id="四、再给你一个“系统级验证方法”"><a href="#四、再给你一个“系统级验证方法”" class="headerlink" title="四、再给你一个“系统级验证方法”"></a>四、再给你一个 “系统级验证方法”</h2><p>你可以直接验证 thermal trip point：</p>
+<p>cat /sys/firmware/devicetree/base/thermal-zones/soc_thermal/trips/crit/temperature</p>
+<p>一般输出：</p>
+<p>120000</p>
+<p>👉 如果单位是 m°C：</p>
+<p>120000 → 120°C</p>
+<p>✔ 合理（CPU 保护温度）</p>
+<hr>
+<p>如果不是 m°C：</p>
+<p>120000°C ❌<br>12000°C ❌</p>
+<p>👉 全部不成立</p>
+<hr>
+<h2 id="五、再补一个工程细节（很多人不知道）"><a href="#五、再补一个工程细节（很多人不知道）" class="headerlink" title="五、再补一个工程细节（很多人不知道）"></a>五、再补一个工程细节（很多人不知道）</h2><p>为什么不用浮点？</p>
+<ol>
+<li>内核禁止浮点运算</li>
+<li>避免精度误差</li>
+<li>统一所有平台接口</li>
+</ol>
+<p>所以统一用：</p>
+<p>int temp = xxx (m°C)</p>
+<hr>
+<h2 id="六、一句话总结"><a href="#六、一句话总结" class="headerlink" title="六、一句话总结"></a>六、一句话总结</h2><blockquote>
+<p><strong>不是我 “判断” 它是 m°C，而是 Linux thermal 子系统 ABI 明确定义：<code>thermal_zone/temp</code> 必须以毫摄氏度表示，所有驱动都必须遵守这个约定。</strong></p>
+</blockquote>
+</blockquote>
+]]></content>
+      <categories>
+        <category>linux指令</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>shell</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Phy 与 switch 的性能调优手段的分析步骤</title>
+    <url>/2026/03/31/Phy%E4%B8%8Eswitch%E7%9A%84%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%89%8B%E6%AE%B5%E7%9A%84%E5%88%86%E6%9E%90%E6%AD%A5%E9%AA%A4/</url>
+    <content><![CDATA[<h1 id="一、整体方法论（先建立框架）"><a href="#一、整体方法论（先建立框架）" class="headerlink" title="一、整体方法论（先建立框架）"></a>一、整体方法论（先建立框架）</h1><p>核心思路：</p>
+<p><code>物理层 -&gt; PCS/SerDes -&gt; MAC -&gt; Switch -&gt; 队列/流控 -&gt; CPU -&gt; 协议栈</code></p>
+<p>每一层必须回答 3 个问题：</p>
+<ul>
+<li>是否正常工作（功能）</li>
+<li>是否跑满（性能）</li>
+<li>是否匹配（配置一致性）</li>
+</ul>
+<h1 id="二、Step-1：物理层（PHY）——先确认链路质量"><a href="#二、Step-1：物理层（PHY）——先确认链路质量" class="headerlink" title="二、Step 1：物理层（PHY）——先确认链路质量"></a>二、Step 1：物理层（PHY）—— 先确认链路质量</h1><h2 id="1-看协商结果（你已经做了）"><a href="#1-看协商结果（你已经做了）" class="headerlink" title="1) 看协商结果（你已经做了）"></a>1) 看协商结果（你已经做了）</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关注：</p>
+<ul>
+<li><code>Speed</code>（是否降速）</li>
+<li><code>Duplex</code>（必须 <code>full</code>）</li>
+<li><code>Auto-neg</code>（是否开启）</li>
+</ul>
+<h2 id="2-看-PHY-误码-x2F-健康状态"><a href="#2-看-PHY-误码-x2F-健康状态" class="headerlink" title="2) 看 PHY 误码 / 健康状态"></a>2) 看 PHY 误码 / 健康状态</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool -S ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>重点字段（不同 PHY 名字不同）：</p>
+<ul>
+<li><code>crc errors</code></li>
+<li><code>symbol errors</code></li>
+<li><code>alignment errors</code></li>
+</ul>
+<p>判断：</p>
+<ul>
+<li>有误码 -&gt; 物理层问题（线材 / 模块 / SI）</li>
+<li>无误码 -&gt; 进入下一层</li>
+</ul>
+<h2 id="3-MDIO-寄存器级分析（进阶）"><a href="#3-MDIO-寄存器级分析（进阶）" class="headerlink" title="3) MDIO 寄存器级分析（进阶）"></a>3) MDIO 寄存器级分析（进阶）</h2><p>（特别是你用 RTL8261 / YT 系列）</p>
+<p>重点看：</p>
+<ul>
+<li>Clause45 AN 状态</li>
+<li> Link partner ability</li>
+<li>FEC 状态</li>
+</ul>
+<h1 id="三、Step-2：SerDes-x2F-PCS（关键瓶颈点）"><a href="#三、Step-2：SerDes-x2F-PCS（关键瓶颈点）" class="headerlink" title="三、Step 2：SerDes / PCS（关键瓶颈点）"></a>三、Step 2：SerDes / PCS（关键瓶颈点）</h1><p>你是：</p>
+<p><code>USXGMII / 10GBase-KR / SGMII</code></p>
+<p>这是最容易出性能问题的层。</p>
+<p>关键检查点：</p>
+<h2 id="1-PCS-是否-lock"><a href="#1-PCS-是否-lock" class="headerlink" title="1) PCS 是否 lock"></a>1) PCS 是否 lock</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">dmesg | grep -i pcs</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-是否发生速率-fallback"><a href="#2-是否发生速率-fallback" class="headerlink" title="2) 是否发生速率 fallback"></a>2) 是否发生速率 fallback</h2><p>典型现象：</p>
+<ul>
+<li>支持 10G -&gt; 实际 1G</li>
+</ul>
+<p>原因：</p>
+<ul>
+<li>Training 失败</li>
+<li> AN 不匹配</li>
+<li> FEC 不一致</li>
+</ul>
+<h2 id="3-FEC（前向纠错）"><a href="#3-FEC（前向纠错）" class="headerlink" title="3) FEC（前向纠错）"></a>3) FEC（前向纠错）</h2><p>10G 链路常见：</p>
+<ul>
+<li>RS-FEC</li>
+<li>BASE-R FEC</li>
+</ul>
+<p>不匹配会：</p>
+<ul>
+<li>丢包</li>
+<li>重传</li>
+<li>吞吐下降</li>
+</ul>
+<h1 id="四、Step-3：MAC-层（最容易被忽略）"><a href="#四、Step-3：MAC-层（最容易被忽略）" class="headerlink" title="四、Step 3：MAC 层（最容易被忽略）"></a>四、Step 3：MAC 层（最容易被忽略）</h1><h2 id="1-流控（你当前已经踩坑）"><a href="#1-流控（你当前已经踩坑）" class="headerlink" title="1) 流控（你当前已经踩坑）"></a>1) 流控（你当前已经踩坑）</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool -a ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关键：</p>
+<ul>
+<li><code>RX/TX pause</code> 是否开启</li>
+</ul>
+<p>判断：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无流控</td>
+<td> TX 掉速 / 丢包</td>
+</tr>
+<tr>
+<td>单向流控</td>
+<td>严重不对称</td>
+</tr>
+<tr>
+<td>双向流控</td>
+<td>最稳定</td>
+</tr>
+</tbody></table>
+<h2 id="2-MAC-FIFO-x2F-队列"><a href="#2-MAC-FIFO-x2F-队列" class="headerlink" title="2) MAC FIFO / 队列"></a>2) MAC FIFO / 队列</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool -S ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<p>关注：</p>
+<ul>
+<li><code>tx_fifo_errors</code></li>
+<li><code>rx_fifo_errors</code></li>
+<li><code>queue drops</code></li>
+</ul>
+<h1 id="五、Step-4：Switch（YT9224-x2F-MTK-switch）"><a href="#五、Step-4：Switch（YT9224-x2F-MTK-switch）" class="headerlink" title="五、Step 4：Switch（YT9224 / MTK switch）"></a>五、Step 4：Switch（YT9224 / MTK switch）</h1><p>这是你当前架构的核心性能瓶颈点。</p>
+<h2 id="1-端口速率一致性"><a href="#1-端口速率一致性" class="headerlink" title="1) 端口速率一致性"></a>1) 端口速率一致性</h2><p>必须保证：</p>
+<ul>
+<li>CPU 口 = 10G</li>
+<li> 上行口 = 10G</li>
+<li> 下行口 &gt;= 瓶颈</li>
+</ul>
+<p>否则：</p>
+<ul>
+<li>内部拥塞</li>
+</ul>
+<h2 id="2-Switch-buffer"><a href="#2-Switch-buffer" class="headerlink" title="2) Switch buffer"></a>2) Switch buffer</h2><p>YT9224 特点：</p>
+<ul>
+<li>Buffer 有限</li>
+<li>无流控时容易爆</li>
+</ul>
+<h2 id="3-Port-queue-x2F-调度"><a href="#3-Port-queue-x2F-调度" class="headerlink" title="3) Port queue / 调度"></a>3) Port queue / 调度</h2><p>看：</p>
+<ul>
+<li>是否启用 QoS</li>
+<li>WRR / SP 调度</li>
+</ul>
+<h2 id="4-Switch-lt-gt-CPU-链路"><a href="#4-Switch-lt-gt-CPU-链路" class="headerlink" title="4) Switch <-> CPU 链路"></a>4) Switch &lt;-&gt; CPU 链路</h2><p>你 DTS：</p>
+<p><code>fixed-link 10G</code></p>
+<p>风险：</p>
+<ul>
+<li>实际没跑到 10G（但内核认为是 10G）</li>
+<li>导致严重丢包</li>
+</ul>
+<h1 id="六、Step-5：数据面测试（iperf3-方法论）"><a href="#六、Step-5：数据面测试（iperf3-方法论）" class="headerlink" title="六、Step 5：数据面测试（iperf3 方法论）"></a>六、Step 5：数据面测试（iperf3 方法论）</h1><p>正确测试方式：</p>
+<h2 id="1-单向"><a href="#1-单向" class="headerlink" title="1) 单向"></a>1) 单向</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">iperf3 -c xxx</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-双向（你之前问题）"><a href="#2-双向（你之前问题）" class="headerlink" title="2) 双向（你之前问题）"></a>2) 双向（你之前问题）</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">iperf3 -c xxx -d</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="3-多流"><a href="#3-多流" class="headerlink" title="3) 多流"></a>3) 多流</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">iperf3 -c xxx -P 4</span><br></pre></td></tr></tbody></table></figure>
+
+<p>判断逻辑：</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td> RX 正常，TX 低</td>
+<td>无流控</td>
+</tr>
+<tr>
+<td>双向都低</td>
+<td>带宽瓶颈</td>
+</tr>
+<tr>
+<td>抖动大</td>
+<td> Buffer 不足</td>
+</tr>
+</tbody></table>
+<h1 id="七、Step-6：CPU-amp-中断"><a href="#七、Step-6：CPU-amp-中断" class="headerlink" title="七、Step 6：CPU &amp; 中断"></a>七、Step 6：CPU &amp; 中断</h1><h2 id="1-看-CPU"><a href="#1-看-CPU" class="headerlink" title="1) 看 CPU"></a>1) 看 CPU</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">top</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-看中断分布"><a href="#2-看中断分布" class="headerlink" title="2) 看中断分布"></a>2) 看中断分布</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="built_in">cat</span> /proc/interrupts</span><br></pre></td></tr></tbody></table></figure>
+
+<p>判断：</p>
+<ul>
+<li>是否单核打满</li>
+</ul>
+<h2 id="3-RPS-x2F-XPS"><a href="#3-RPS-x2F-XPS" class="headerlink" title="3) RPS/XPS"></a>3) RPS/XPS</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="built_in">cat</span> /sys/class/net/ethX/queues/rx-*/rps_cpus</span><br></pre></td></tr></tbody></table></figure>
+
+<h1 id="八、Step-7：驱动-amp-内核（你这个很关键）"><a href="#八、Step-7：驱动-amp-内核（你这个很关键）" class="headerlink" title="八、Step 7：驱动 &amp; 内核（你这个很关键）"></a>八、Step 7：驱动 &amp; 内核（你这个很关键）</h1><p>你是：</p>
+<ul>
+<li>MTK <code>mtk_eth</code></li>
+<li><code>phylink</code></li>
+<li>外挂 switch</li>
+</ul>
+<p>关键检查点：</p>
+<h2 id="1-phylink-状态"><a href="#1-phylink-状态" class="headerlink" title="1) phylink 状态"></a>1) phylink 状态</h2><p>是否正确传递：</p>
+<ul>
+<li><code>speed</code></li>
+<li><code>pause</code></li>
+<li><code>duplex</code></li>
+</ul>
+<h2 id="2-是否使用硬件-offload"><a href="#2-是否使用硬件-offload" class="headerlink" title="2) 是否使用硬件 offload"></a>2) 是否使用硬件 offload</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool -k ethX</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="3-DSA-x2F-swconfig-差异"><a href="#3-DSA-x2F-swconfig-差异" class="headerlink" title="3) DSA / swconfig 差异"></a>3) DSA /swconfig 差异</h2><ul>
+<li><code>swconfig</code> -&gt; CPU 压力大</li>
+<li><code>DSA</code> -&gt; 更好</li>
+</ul>
+<h1 id="九、典型问题模式（直接对号入座）"><a href="#九、典型问题模式（直接对号入座）" class="headerlink" title="九、典型问题模式（直接对号入座）"></a>九、典型问题模式（直接对号入座）</h1><h2 id="模式-1（你当前情况）"><a href="#模式-1（你当前情况）" class="headerlink" title="模式 1（你当前情况）"></a>模式 1（你当前情况）</h2><ul>
+<li>RX 1.7G</li>
+<li>TX 200M</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>流控未生效</li>
+</ul>
+<h2 id="模式-2"><a href="#模式-2" class="headerlink" title="模式 2"></a>模式 2</h2><ul>
+<li>只跑 1G</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>AN / PCS / 模块不匹配</li>
+</ul>
+<h2 id="模式-3"><a href="#模式-3" class="headerlink" title="模式 3"></a>模式 3</h2><ul>
+<li>双向都低</li>
+</ul>
+<p>结论：</p>
+<ul>
+<li>CPU /switch 瓶颈</li>
+</ul>
+<h1 id="十、标准调优流程（建议你照这个走）"><a href="#十、标准调优流程（建议你照这个走）" class="headerlink" title="十、标准调优流程（建议你照这个走）"></a>十、标准调优流程（建议你照这个走）</h1><ol>
+<li><code>ethtool</code> -&gt; 确认速率</li>
+<li><code>ethtool -a</code> -&gt; 确认流控</li>
+<li> PHY 寄存器 -&gt; 确认 AN/FEC</li>
+<li><code>dmesg</code> -&gt; 看 link 变化</li>
+<li><code>iperf3</code> -&gt; 单 / 双向验证</li>
+<li> switch port -&gt; 确认无瓶颈</li>
+<li> CPU / 中断 -&gt; 排除软件瓶颈</li>
+</ol>
+<h1 id="十一、给你的针对性建议（结合你现状）"><a href="#十一、给你的针对性建议（结合你现状）" class="headerlink" title="十一、给你的针对性建议（结合你现状）"></a>十一、给你的针对性建议（结合你现状）</h1><p>你当前已经确认：</p>
+<ul>
+<li>Link OK</li>
+<li> 只有 1G</li>
+<li>Flow control OFF</li>
+</ul>
+<p>下一步优先级：</p>
+<h2 id="1-先解决流控"><a href="#1-先解决流控" class="headerlink" title="1) 先解决流控"></a>1) 先解决流控</h2><figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">ethtool -A eth2 rx on tx on</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="2-再查为什么不是-10G"><a href="#2-再查为什么不是-10G" class="headerlink" title="2) 再查为什么不是 10G"></a>2) 再查为什么不是 10G</h2><p>重点看：</p>
+<ul>
+<li>对端设备</li>
+<li> SFP 模块</li>
+<li> USXGMII / PHY 配置</li>
+</ul>
+<h1 id="总结（一句话）"><a href="#总结（一句话）" class="headerlink" title="总结（一句话）"></a>总结（一句话）</h1><p>有线 PHY + switch 调优的核心不是提速，而是保证每一层（PHY -&gt; PCS -&gt; MAC -&gt; Switch）能力一致且流控闭环成立，否则一定出现你现在这种带宽严重不对称的问题。</p>
+]]></content>
+      <categories>
+        <category>驱动调试</category>
+      </categories>
+      <tags>
+        <tag>phy</tag>
+        <tag>switch</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>嵌入式程序员前卫博客主题部署指南</title>
+    <url>/2026/03/23/AI%E7%94%9F%E6%88%90%E7%9A%84github_action_hexo%E9%83%A8%E7%BD%B2/</url>
+    <content><![CDATA[<h2 id="📋-前置准备"><a href="#📋-前置准备" class="headerlink" title="📋 前置准备"></a>📋 前置准备</h2><ul>
+<li><strong>本地环境</strong>：已安装 Node.js, Git, Hexo CLI。</li>
+<li><strong>博客源码</strong>：本地已有 Hexo 博客源码目录。</li>
+<li><strong>主题文件</strong>：已获取生成的主题文件夹（假设命名为 <code>hexo-theme-embed-pro</code>）。</li>
+<li><strong>GitHub 仓库</strong>：拥有 <code>Mark-cx/Mark-cx.github.io</code> (或对应仓库) 的写入权限。</li>
+</ul>
+<hr>
+<h2 id="🚀-部署流程"><a href="#🚀-部署流程" class="headerlink" title="🚀 部署流程"></a>🚀 部署流程</h2><h3 id="第一步：本地安装主题"><a href="#第一步：本地安装主题" class="headerlink" title="第一步：本地安装主题"></a>第一步：本地安装主题</h3><ol>
+<li><p><strong>进入博客根目录</strong><br>打开终端，导航至您的 Hexo 博客根目录（即包含 <code>_config.yml</code> 的文件夹）：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="built_in">cd</span> /path/to/your/hexo-blog</span><br></pre></td></tr></tbody></table></figure>
+</li>
+<li><p><strong>放置主题文件</strong><br>将下载或生成的主题文件夹 <code>hexo-theme-embed-pro</code> 移动或复制到博客根目录下的 <code>themes</code> 文件夹中。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 如果 themes 文件夹不存在，先创建</span></span><br><span class="line"><span class="built_in">mkdir</span> -p themes</span><br><span class="line"></span><br><span class="line"><span class="comment"># 移动主题文件夹 (示例路径，请根据实际情况调整)</span></span><br><span class="line"><span class="built_in">mv</span> ~/Downloads/hexo-theme-embed-pro themes/</span><br></pre></td></tr></tbody></table></figure>
+<p><em>确认路径结构为：<code>/path/to/your/hexo-blog/themes/hexo-theme-embed-pro</code></em></p>
+</li>
+</ol>
+<h3 id="第二步：配置与启用"><a href="#第二步：配置与启用" class="headerlink" title="第二步：配置与启用"></a>第二步：配置与启用</h3><ol>
+<li><p><strong>修改站点配置</strong><br>使用编辑器打开博客根目录下的 <code>_config.yml</code> 文件，找到 <code>theme</code> 字段，将其值修改为新主题的名称：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># _config.yml (根目录)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 其他配置</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 启用新主题 (名称必须与 themes 文件夹名称一致)</span></span><br><span class="line"><span class="attr">theme:</span> <span class="string">hexo-theme-embed-pro</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 其他配置</span></span><br></pre></td></tr></tbody></table></figure>
+</li>
+<li><p><strong>安装主题依赖 (如有)</strong><br>如果主题文件夹内包含 <code>package.json</code>，建议安装其特定依赖以确保动画库和图标库正常工作：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="built_in">cd</span> themes/hexo-theme-embed-pro</span><br><span class="line">npm install</span><br><span class="line"><span class="built_in">cd</span> ../../ <span class="comment"># 返回博客根目录</span></span><br></pre></td></tr></tbody></table></figure>
+</li>
+<li><p><strong>本地预览测试</strong><br>清理缓存并启动本地服务器，检查动画效果（蓝色背景、四种以上大幅动画、图标显示等）：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">hexo clean &amp;&amp; hexo server</span><br></pre></td></tr></tbody></table></figure>
+<p>访问 <code>http://localhost:4000</code> 进行验证。如需调整动画参数或颜色，可编辑 <code>themes/hexo-theme-embed-pro/_config.yml</code> 或对应的 CSS/JS 文件。</p>
+</li>
+</ol>
+<h3 id="第三步：部署到-GitHub"><a href="#第三步：部署到-GitHub" class="headerlink" title="第三步：部署到 GitHub"></a>第三步：部署到 GitHub</h3><h4 id="方案-A：使用-Hexo-Git-部署插件（推荐）"><a href="#方案-A：使用-Hexo-Git-部署插件（推荐）" class="headerlink" title="方案 A：使用 Hexo Git 部署插件（推荐）"></a>方案 A：使用 Hexo Git 部署插件（推荐）</h4><ol>
+<li><p><strong>安装部署插件</strong><br>如果尚未安装，请在博客根目录执行：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">npm install hexo-deployer-git --save</span><br></pre></td></tr></tbody></table></figure>
+</li>
+<li><p><strong>配置部署信息</strong><br>在根目录 <code>_config.yml</code> 文件末尾，添加或修改 <code>deploy</code> 部分：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="code"><pre><span class="line"><span class="attr">deploy:</span></span><br><span class="line">  <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">git@github.com:Mark-cx/Mark-cx.github.io.git</span>  <span class="comment"># 替换为您的实际仓库地址 (SSH 或 HTTPS)</span></span><br><span class="line">  <span class="attr">branch:</span> <span class="string">main</span>  <span class="comment"># 替换为您仓库的主分支名 (通常是 main 或 master)</span></span><br></pre></td></tr></tbody></table></figure>
+</li>
+<li><p><strong>执行部署</strong><br>运行以下命令生成静态文件并推送到 GitHub：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">hexo clean &amp;&amp; hexo generate &amp;&amp; hexo deploy</span><br></pre></td></tr></tbody></table></figure>
+<p><em>首次部署可能需要输入 GitHub 账号密码或配置 SSH Key。</em></p>
+</li>
+</ol>
+<h4 id="方案-B：手动推送-适用于高级用户"><a href="#方案-B：手动推送-适用于高级用户" class="headerlink" title="方案 B：手动推送 (适用于高级用户)"></a>方案 B：手动推送 (适用于高级用户)</h4><ol>
+<li><p><strong>生成静态文件</strong></p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line">hexo clean &amp;&amp; hexo generate</span><br></pre></td></tr></tbody></table></figure>
+<p>生成的文件位于 <code>public</code> 目录。</p>
+</li>
+<li><p><strong>初始化并推送 Git</strong></p>
+<figure class="highlight bash"><table><tbody><tr><td class="code"><pre><span class="line"><span class="built_in">cd</span> public</span><br><span class="line">git init</span><br><span class="line">git add .</span><br><span class="line">git commit -m <span class="string">"Deploy: New embedded programmer theme with advanced animations"</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 关联远程仓库 (替换为您的实际仓库地址)</span></span><br><span class="line">git remote add origin git@github.com:Mark-cx/Mark-cx.github.io.git</span><br><span class="line"></span><br><span class="line"><span class="comment"># 强制推送到指定分支 (注意：这会覆盖远程分支内容)</span></span><br><span class="line">git push -f origin master:main </span><br><span class="line"><span class="comment"># 说明：将本地的 master 分支(由git init默认创建)强制推送到远程的 main 分支</span></span><br><span class="line"><span class="comment"># 如果远程主分支是 master，则改为: git push -f origin master:master</span></span><br><span class="line"><span class="comment"># 如果 GitHub Pages 设置为从 gh-pages 分支发布，则改为: git push -f origin master:gh-pages</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">cd</span> .. <span class="comment"># 返回根目录</span></span><br></pre></td></tr></tbody></table></figure></li>
+</ol>
+<hr>
+<h2 id="🔍-常见问题排查-FAQ"><a href="#🔍-常见问题排查-FAQ" class="headerlink" title="🔍 常见问题排查 (FAQ)"></a>🔍 常见问题排查 (FAQ)</h2><table>
+<thead>
+<tr>
+<th align="left">问题现象</th>
+<th align="left">可能原因</th>
+<th align="left">解决方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>动画未显示 / 样式错乱</strong></td>
+<td align="left">缓存未清除或路径错误</td>
+<td align="left"> 1. 务必执行 <code>hexo clean</code>。<br>2. 检查 <code>_config.yml</code> 中 <code>theme</code> 名称是否与文件夹完全一致。<br>3. 浏览器硬刷新 (Ctrl+F5)。</td>
+</tr>
+<tr>
+<td align="left"><strong>GitHub Pages 404</strong></td>
+<td align="left"> 部署分支错误或构建中</td>
+<td align="left"> 1. 检查仓库 <code>Settings</code> -&gt; <code>Pages</code>，确认 Source 分支与部署命令中的 <code>branch</code> 一致。<br>2. 等待 1-2 分钟让 GitHub 完成构建。<br>3. 确认推送的文件在仓库根目录，而非子文件夹。</td>
+</tr>
+<tr>
+<td align="left"><strong>图标不显示</strong></td>
+<td align="left">字体文件或 SVG 路径错误</td>
+<td align="left">检查主题 <code>source</code> 目录下的字体 / 图标文件是否完整，以及 CSS 中的引用路径是否正确。</td>
+</tr>
+<tr>
+<td align="left"><strong>蓝色背景不生效</strong></td>
+<td align="left"> CSS 变量未加载</td>
+<td align="left">检查浏览器控制台 (F12) 是否有 CSS 加载报错 (404)。确认主题是否正确引用了自定义的 CSS 文件。</td>
+</tr>
+<tr>
+<td align="left"><strong>推送权限被拒绝</strong></td>
+<td align="left"> SSH Key 未配置或账号错误</td>
+<td align="left"> 1. 检查使用的 URL 是 SSH (<code>git@...</code>) 还是 HTTPS (<code>https://...</code>)。<br>2. 若是 SSH，确保本地已添加公钥到 GitHub。<br>3. 若是 HTTPS，确保账号密码 / Token 正确。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="💡-进阶优化建议"><a href="#💡-进阶优化建议" class="headerlink" title="💡 进阶优化建议"></a>💡 进阶优化建议</h2><ul>
+<li><strong>自定义动画参数</strong>：若要调整动画速度、颜色深浅或粒子数量，请直接编辑主题目录下的 <code>source/js/main.js</code> (或类似文件名) 和 <code>source/css/style.css</code>。</li>
+<li><strong>SEO 优化</strong>：在 <code>_config.yml</code> 中完善 <code>description</code>, <code>keywords</code> 等信息，提升搜索引擎收录。</li>
+<li><strong>性能优化</strong>：如果动画过于复杂导致加载慢，考虑对大型 JS/CSS 文件进行压缩，或使用 CDN 加速静态资源。</li>
+</ul>
+<p>祝您部署顺利，打造出最炫酷的嵌入式程序员个人主页！</p>
+]]></content>
+      <categories>
+        <category>AI hexo 博客</category>
+      </categories>
+      <tags>
+        <tag>hexo</tag>
+        <tag>ai</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hexo 博客 GitHub Actions 部署错误排查与解决指南</title>
+    <url>/2026/03/23/GitHubActions%E9%83%A8%E7%BD%B2%E9%94%99%E8%AF%AF%E6%8E%92%E6%9F%A5%E4%B8%8E%E8%A7%A3%E5%86%B3%E6%8C%87%E5%8D%97/</url>
+    <content><![CDATA[<h2 id="📋-错误概览"><a href="#📋-错误概览" class="headerlink" title="📋 错误概览"></a>📋 错误概览</h2><table>
+<thead>
+<tr>
+<th align="left">序号</th>
+<th align="left">错误类型</th>
+<th align="left">关键报错信息</th>
+<th align="left">状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"> 1</td>
+<td align="left"><strong>Token 类型错误</strong></td>
+<td align="left"><code>Action failed with "not found deploy key or tokens"</code></td>
+<td align="left">✅ 已解决</td>
+</tr>
+<tr>
+<td align="left"> 2</td>
+<td align="left"><strong>YAML 语法错误</strong></td>
+<td align="left">文件内容重复、非法缩进、无效参数</td>
+<td align="left">✅ 已解决</td>
+</tr>
+<tr>
+<td align="left"> 3</td>
+<td align="left"><strong>SSH 权限拒绝</strong></td>
+<td align="left"><code>git@github.com: Permission denied (publickey)</code></td>
+<td align="left">✅ 已解决</td>
+</tr>
+<tr>
+<td align="left"> 4</td>
+<td align="left"><strong>Front-matter 格式错误</strong></td>
+<td align="left"><code>YAMLException: end of the stream or a document separator is expected</code></td>
+<td align="left">⚠️ 需本地修复</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="🔍-详细问题分析与解决方案"><a href="#🔍-详细问题分析与解决方案" class="headerlink" title="🔍 详细问题分析与解决方案"></a>🔍 详细问题分析与解决方案</h2><h3 id="1-Token-类型不兼容-Fine-grained-vs-Classic"><a href="#1-Token-类型不兼容-Fine-grained-vs-Classic" class="headerlink" title="1. Token 类型不兼容 (Fine-grained vs Classic)"></a>1. Token 类型不兼容 (Fine-grained vs Classic)</h3><h4 id="❌-问题现象"><a href="#❌-问题现象" class="headerlink" title="❌ 问题现象"></a>❌ 问题现象</h4><p>GitHub Actions 报错提示找不到有效的 Deploy Key 或 Token，尽管用户已经创建了 Token。</p>
+<h4 id="🔎-根本原因"><a href="#🔎-根本原因" class="headerlink" title="🔎 根本原因"></a>🔎 根本原因</h4><p>用户创建的是 <strong>Fine-grained personal access tokens</strong>（细粒度令牌）。</p>
+<ul>
+<li><strong>限制</strong>：这种新型令牌权限控制更精细，但许多第三方 GitHub Actions（如 <code>peaceiris/actions-gh-pages</code>）<strong>不支持</strong>此类型。</li>
+<li><strong>要求</strong>：该插件明确要求使用 <strong>Classic Tokens</strong>。</li>
+</ul>
+<h4 id="✅-解决方案"><a href="#✅-解决方案" class="headerlink" title="✅ 解决方案"></a>✅ 解决方案</h4><ol>
+<li><strong>删除旧 Token</strong>：在 GitHub Settings -&gt; Developer settings -&gt; Personal access tokens 中，删除名为 <code>hexo-token</code> 的 Fine-grained Token。</li>
+<li><strong>创建 Classic Token</strong>：<ul>
+<li>进入 <strong>Tokens (classic)</strong> 页面。</li>
+<li>点击 **Generate new token (classic)**。</li>
+<li><strong>Note</strong>: 填写备注（如 <code>Hexo Deploy</code>）。</li>
+<li><strong>Expiration</strong>: 选择有效期（建议 No expiration 或根据需求设定）。</li>
+<li><strong>Select scopes</strong>: <strong>务必勾选 <code>repo</code></strong> (完整控制私有仓库)。</li>
+<li>生成并<strong>立即复制</strong>以 <code>ghp_</code> 开头的 Token 字符串。</li>
+</ul>
+</li>
+<li><strong>更新 Secrets</strong>：<ul>
+<li>进入仓库 <strong>Settings</strong> -&gt; <strong>Secrets and variables</strong> -&gt; <strong>Actions</strong>。</li>
+<li>新建或编辑 Secret，名称设为 <code>HEXO_DEPLOY_TOKEN</code>（需与 YAML 中一致）。</li>
+<li>值粘贴刚才复制的 Classic Token。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="2-Workflow-文件-YAML-语法严重错误"><a href="#2-Workflow-文件-YAML-语法严重错误" class="headerlink" title="2. Workflow 文件 (YAML) 语法严重错误"></a>2. Workflow 文件 (YAML) 语法严重错误</h3><h4 id="❌-问题现象-1"><a href="#❌-问题现象-1" class="headerlink" title="❌ 问题现象"></a>❌ 问题现象</h4><p>Workflow 无法启动或立即失败，日志显示解析错误。</p>
+<h4 id="🔎-根本原因-1"><a href="#🔎-根本原因-1" class="headerlink" title="🔎 根本原因"></a>🔎 根本原因</h4><p><code>.github/workflows/deploy.yml</code> 文件内容发生<strong>重复粘贴</strong>，导致结构错乱。</p>
+<ul>
+<li>整个 <code>jobs</code> 部分被重复了一遍。</li>
+<li>在 <code>with</code> 参数块中出现了孤立的文本 <code>Mark-cx/Blog</code>，这在 YAML 中是非法语法。</li>
+<li>参数（如 <code>publish_branch</code>）被重复定义。</li>
+</ul>
+<h4 id="✅-解决方案-1"><a href="#✅-解决方案-1" class="headerlink" title="✅ 解决方案"></a>✅ 解决方案</h4><p><strong>彻底替换</strong> <code>.github/workflows/deploy.yml</code> 文件内容。请使用以下标准配置（基于 <code>peaceiris/actions-gh-pages</code> 插件，无需 SSH）：</p>
+<pre><code class="yaml">name: Hexo Blog CI
+
+on: 
+  push:
+    branches:
+      - main  # 触发分支：您的源码所在分支
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出源码
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      # 2. 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # 3. 安装依赖
+      - name: Install Dependencies
+        run: |
+          npm install hexo-cli -g
+          npm install
+          npm uninstall hexo-generator-index --save || true
+          npm install hexo-generator-index-pin-top --save
+          npm install hexo-helper-live2d --save
+          npm install live2d-widget-model-haru --save
+
+      # 4. 生成静态文件 (只生成，不部署)
+      - name: Generate Static Files
+        run: |
+          hexo clean
+          hexo generate
+          # ⚠️ 注意：这里千万不要运行 hexo deploy
+
+      # 5. 使用 peaceiris 插件部署 (核心步骤)
+      - name: Deploy to External Repository
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # 确保 Secret 名字匹配
+          personal_token:  $ {{ secrets.HEXO_DEPLOY_TOKEN }}
+          
+          # 目标仓库
+          external_repository: Mark-cx/Mark-cx.github.io
+          
+          # 目标分支
+          publish_branch: main
+          
+          # 发布目录
+          publish_dir: ./public
+          
+          # 强制推送 (首次部署建议开启)
+          force_orphan: true
+          
+          # 提交用户信息
+          user_name: 'Mark-cx'
+          user_email: '209332274@qq.com'
+</code></pre>
+]]></content>
+      <categories>
+        <category>AI hexo 博客</category>
+      </categories>
+      <tags>
+        <tag>hexo</tag>
+        <tag>ai</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一些工具使用心得</title>
+    <url>/2024/01/15/2024%E7%9A%84%E4%B8%80%E4%BA%9B%E5%BF%83%E5%BE%97%E4%BD%93%E4%BC%9A/</url>
+    <content><![CDATA[<h2 id="1-工作思维变革"><a href="#1-工作思维变革" class="headerlink" title="1. 工作思维变革"></a>1. 工作思维变革</h2><blockquote>
+<p>如何高效利用检索工具和智能工具（如 chargtp）。在软件工程师的日常工作中会遇到大量 bug 和问题。那么，如何思维解决这些问题呢？<br>大致分为理念问题、逻辑问题、文字错误问题。可见这些问题是由抽象到逻辑到具体的问题。下面将分而细化地说明解释。</p>
+</blockquote>
+<h3 id="1-1理念问题"><a href="#1-1理念问题" class="headerlink" title="1.1理念问题"></a>1.1 理念问题</h3><blockquote>
+<p>此问题宏观大至宇宙万物真理起源灭迹，小至个体生物情感观念。在工作中具体多为方案的排列组合不同，据不同人有不同意见；又或者是公司价值与个人理念、利益等不同。<br>这类问题需要顺应中道而得其治。往往无正确与错误答案，只在并发相冲相容。</p>
+</blockquote>
+<h3 id="1-2-逻辑问题"><a href="#1-2-逻辑问题" class="headerlink" title="1.2 逻辑问题"></a>1.2 逻辑问题</h3><blockquote>
+<p>此类问题不赘述其他，以软件视角看待。<br>多为代码逻辑不通或者是错误的逻辑设计，不符合预期要求的皆可以称为逻辑错误。<br>要解决此类问题可分为以下几步</p>
+<blockquote>
+<p>a. 理解正确的逻辑要求，对比错误逻辑要求。<br>b. 定位错误逻辑要求代码范围。（最好初步详细到具体文件）；次步再定位具体代码段。<br>c. 阅读分析代码逻辑<br>d. 修改与正确作对比<br>e. 测试正确则过，不正确返回 c 步骤（前提是正确定位到逻辑错误的代码）<br>此些过程中 ai 和检索可以给到逻辑分析帮助。开源的情况下可以帮助定位代码。关键在于正确的描述给检索和 ai 以定位较为正确或者类似回答。</p>
+</blockquote>
+</blockquote>
+<h3 id="1-3-文字错误问题"><a href="#1-3-文字错误问题" class="headerlink" title="1.3 文字错误问题"></a>1.3 文字错误问题</h3><blockquote>
+<p>此类问题属于杂而多，因为市场上开源包和各个应用版本的迭代导致诸多类似不兼容（多在构建与编译时）。<br>一般的代码语法错误，较为简单。<br>具备明显错误无法运行。ai 与检索多可以帮助完全解决。但是最好开始具体情况看报错描述。</p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>工具、逻辑理解</category>
+      </categories>
+      <tags>
+        <tag>人工智能</tag>
+        <tag>辅助工具</tag>
+        <tag>逻辑思维</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Ubuntu 环境变量重复</title>
+    <url>/2022/08/22/env%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F%E8%AE%BE%E7%BD%AE%E9%87%8D%E5%A4%8D/</url>
+    <content><![CDATA[<h2 id="话不多说，上代码"><a href="#话不多说，上代码" class="headerlink" title="话不多说，上代码"></a>话不多说，上代码</h2><figure class="highlight shell"><table><tbody><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/sh</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">lx <span class="built_in">set</span> user define <span class="built_in">env</span></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">user_defind_env start</span></span><br><span class="line">DEFIND_ENV_PATH=("/opt/gk7205v200-toolchains/arm-gcc6.3-linux-uclibceabi/bin" \</span><br><span class="line">                 "/home/lx/gkipc_aiot/tools/toolchains/hcc_riscv32/bin" \</span><br><span class="line">                 "/home/lx/toolchains/hcc_riscv32/bin")</span><br><span class="line">user_defind_env()</span><br><span class="line">{</span><br><span class="line">        int=0</span><br><span class="line">        while(( $int &lt; 3 ))</span><br><span class="line">        do</span><br><span class="line"></span><br><span class="line">                ENV_PATH=`env| grep -o ${DEFIND_ENV_PATH[$int]}:`</span><br><span class="line">                if [ ${ENV_PATH} ];then</span><br><span class="line">                        echo "${DEFIND_ENV_PATH[$int]}": already in the env!</span><br><span class="line">                else</span><br><span class="line">                        #export PATH=${DEFIND_ENV_PATH[$int]}:$PATH</span><br><span class="line">                        echo "${DEFIND_ENV_PATH[$int]}": setting env success!                   </span><br><span class="line">                fi</span><br><span class="line">                let "int++"</span><br><span class="line">        done</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">user_defind_env</span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">user_defind_env end</span></span><br></pre></td></tr></tbody></table></figure>
+<p>int 变量随 DEFIND_ENV_PATH 一样，每次添加路径放在 DEFIND_ENV_PATH 中记得变量后的空格。<br>之所以加”:” 参与判断是因为防止同一个路径不同子目录设置或是上级目录作为变量时的情况。</p>
+]]></content>
+      <categories>
+        <category>shell</category>
+      </categories>
+      <tags>
+        <tag>shell</tag>
+        <tag>env</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>系统存在多个版本时的使用</title>
+    <url>/2022/08/21/%E5%A4%9A%E7%89%88%E6%9C%ACpython%E7%9A%84%E5%86%B2%E7%AA%81/</url>
+    <content><![CDATA[<h3 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h3><p>每次都必须关注一下目前的环境，任何软件的运行离不开它的运行环境！<br>Ubuntu18.04</p>
+<h3 id="查看当前系统的python"><a href="#查看当前系统的python" class="headerlink" title="查看当前系统的python"></a>查看当前系统的 python</h3><p>1.<code>whereis python</code><br>2. 查看当前系统中装有哪些 python<br><code>ls /usr/bin/python</code> 按 Tab 补齐查看安装多少版本 python。<br>或是使用包管理工具查看如：<br><code>apt list |grep -n "python"</code>；不过过于繁琐，不推荐使用，一般在需要详细关注安装包时使用。<br>3. 查看当前使用的 python<br><code>python --version</code><br><code>pip --version</code></p>
+<h3 id="修改环境，使用你需要用到的python支持"><a href="#修改环境，使用你需要用到的python支持" class="headerlink" title="修改环境，使用你需要用到的python支持"></a>修改环境，使用你需要用到的 python 支持</h3><p>由于我使用的是 python3.7，而当前的版本是 2.7，所以修改链接或是别名，具体需要看调用 python 时的别名<br>家目录下：<br><code>ln -s /usr/bin/python3.7 /use/bin/python3</code><br>或者<br><code>alias python3.7 python</code><br>或者直接修改用户配置：~/.bashrc 文件</p>
+<h3 id="使用时出现的一些错误"><a href="#使用时出现的一些错误" class="headerlink" title="使用时出现的一些错误"></a>使用时出现的一些错误</h3><p>1. 无法导入包<br>一般是该支持包未安装，科学上网并安装<br>2. 安装包时总是出现错误<br>如：<br>`<br>  Exception:<br>Traceback (most recent call last):<br>  File “/usr/share/python-wheels/urllib3-1.19.1-py2.py3-none-any.whl/urllib3/connectionpool.py”, line 391, in _make_request<br>    six.raise_from(e, None)<br>  File “<string>“, line 2, in raise_from<br>  File “/usr/share/python-wheels/urllib3-1.19.1-py2.py3-none-any.whl/urllib3/connectionpool.py”, line 387, in _make_request<br>    httplib_response = conn.getresponse()<br>  File “/usr/lib/python3.7/http/client.py”, line 1321, in getresponse<br>    response.begin()<br>  File “/usr/lib/python3.7/http/client.py”, line 296, in begin<br>    version, status, reason = self._read_status()<br>  File “/usr/lib/python3.7/http/client.py”, line 257, in _read_status<br>    line = str(self.fp.readline(_MAXLINE + 1), “iso-8859-1”)<br>  File “/usr/lib/python3.7/socket.py”, line 589, in readinto<br>    return self._sock.recv_into(b)<br>  File “/usr/lib/python3.7/ssl.py”, line 1049, in recv_into<br>    return self.read(nbytes, buffer)<br>  File “/usr/lib/python3.7/ssl.py”, line 908, in read<br>    return self._sslobj.read(len, buffer)<br>socket.timeout: The read operation timed out</string></p>
+<p>During handling of the above exception, another exception occurred:</p>
+<p>`</p>
+<p>这是因为 python 的安装支持包路径错误导致<br>在配置文件中导入:</p>
+<p><code>export PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages</code><br>然后再次安装。</p>
+<h3 id="再次使用python时还是报错无法导入包"><a href="#再次使用python时还是报错无法导入包" class="headerlink" title="再次使用python时还是报错无法导入包"></a>再次使用 python 时还是报错无法导入包</h3><p>已经使用了 pip3 install<br>`<br>  ImportError: cannot import name ‘_counter’ from ‘Crypto.Util’ (/usr/lib/python3/dist-packages/Crypto/Util/<strong>init</strong>.py):<br>  File “/home/lx/gkipc_aiot/sdk/SConstruct”, line 34:<br>    from scripts import pkt_builder<br>  File “/home/lx/gkipc_aiot/sdk/build/scripts/pkt_builder.py”, line 24:<br>    import make_upg_file as MAKE_IMAGE<br>  File “/home/lx/gkipc_aiot/sdk/build/scripts/make_upg_file.py”, line 30:<br>    from Crypto.PublicKey import RSA<br>  File “/usr/lib/python3/dist-packages/Crypto/PublicKey/RSA.py”, line 78:<br>    from Crypto import Random<br>  File “/usr/lib/python3/dist-packages/Crypto/Random/<strong>init</strong>.py”, line 29:<br>    from Crypto.Random import _UserFriendlyRNG<br>  File “/usr/lib/python3/dist-packages/Crypto/Random/_UserFriendlyRNG.py”, line 38:<br>    from Crypto.Random.Fortuna import FortunaAccumulator<br>  File “/usr/lib/python3/dist-packages/Crypto/Random/Fortuna/FortunaAccumulator.py”, line 39:<br>    from . import FortunaGenerator<br>  File “/usr/lib/python3/dist-packages/Crypto/Random/Fortuna/FortunaGenerator.py”, line 35:<br>    from Crypto.Util import Counter<br>  File “/usr/lib/python3/dist-packages/Crypto/Util/Counter.py”, line 59:<br>    from Crypto.Util import _counter</p>
+<p>`</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>一些调试中遇到的问题虽然千奇百怪，但是它们之间都有相应的逻辑可循，因此弄明白事情的前因后果非常重要！</p>
+]]></content>
+      <categories>
+        <category>Python</category>
+      </categories>
+      <tags>
+        <tag>环境</tag>
+        <tag>python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>环境、编译、烧录的过往总结</title>
+    <url>/2022/08/19/env_compile_brun_debug/</url>
+    <content><![CDATA[<p>遵循如下过程以减少开发中出现的错误。<br>1. 应该弄清楚需要做什么，也就是需求。(弄明白你要做什么非常重要，往大了说人生价值所在。往小了说，做一件事情需要有一件事情的缘由。)<br>2. 需要知道怎样去做，严格遵循所需要的支持。(好比要运行 C 程序必须有 C 语言的支持！)<br>3. 实现、创造！(在 1、2 步骤的前提条件之下按照规则是实现所需。)<br>4. 测试 (反复多元的测试，以及利用工具帮助测试)<br>5. 成果 (也是考验其价值)</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">1---&gt;2---&gt;3---&gt;4(判断)\</span><br><span class="line">true---&gt;5\</span><br><span class="line">flase---&gt;3</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h2><p>开发环境：<br>由于 arm 与 x86 的差异，还有就是开发板的资源问题。一般会搭建以 PC 为工作端，linux 服务器为交叉编译端，开发板为烧录端的连接环境下进行开发。需要用到一些 tcp、ip、ssh 等一些协议工具<br>重要：这些环境的配置应该按照核心板的原厂支持进行配置。<br>就是程序在什么样的条件下进行运行。嵌入式 linux 的开发还上位机的 QT 环境。</p>
+<h2 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h2><p>嵌入式的开发不得不提到交叉编译。由于开发板所需要的执行文件是另一个架构的，而需要在不同架构直接编译出别的架构的可执行文件就需要用到交叉编译器。就好像 x86 的执行程序不能在<br>arm 下执行，如果需要编出在 arm 下执行文件就需要通过交叉编译器编译出另外架构的可执行文件。</p>
+<h3 id="编译时候常遇到的一些问题"><a href="#编译时候常遇到的一些问题" class="headerlink" title="编译时候常遇到的一些问题"></a>编译时候常遇到的一些问题</h3><p>1. 缺少.o 文件<br>安装相应的库；或是链接时没有在查询库内，添加相应的链接。<br>2.uboot 、kernel 、roofs 不同层次的一些报错<br>找相应的 Makefile 位置，首先考虑配置不符合原厂支持的要求。其次逐步排查、如是文件错误、即改文件。<br>3. 编译方式错误<br>应当了解各编译配置位置，在哪里编，如何编。不要因为错误的操作导致许多不必要的问题。</p>
+<h2 id="烧录"><a href="#烧录" class="headerlink" title="烧录"></a>烧录</h2><p>1. 应该严格使用原厂的烧录工具或是原厂推荐的烧录工具<br>2. 正确操作烧录；如串口烧录时是否正确选择速率、是否占用等。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>不要因为一些不正确的操作导致浪费时间。情愿多花一些时间来了解怎么正确的操作。</p>
+]]></content>
+      <categories>
+        <category>经验之谈</category>
+      </categories>
+      <tags>
+        <tag>经验</tag>
+        <tag>环境</tag>
+        <tag>compile</tag>
+        <tag>brun</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>GitHub+action+hexo 构建自动部署博客</title>
+    <url>/2022/06/16/GitHub_action_hexo/</url>
+    <content><![CDATA[<h2 id="需求"><a href="#需求" class="headerlink" title="需求"></a>需求</h2><p>想要一个自己的博客写文，但我又想白嫖。又不想花过多时间去管理博客后台。</p>
+<h3 id="hexo"><a href="#hexo" class="headerlink" title="hexo"></a>hexo</h3><p>性质：材料<br>博客的主要原材料，拥有不俗的各路开发者提供的精美主题。</p>
+<p>了解更多: <a href="https://hexo.io/">hexo</a></p>
+<h2 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h2><p>GitHub 提供的 action 在线部署来执行源码动作，page 作为静态访问，因此需要两个仓库。</p>
+<p>action 详解: <a href="https://docs.github.com/cn//actions">action</a></p>
+<p>page 详解: <a href="https://pages.github.com/">page</a></p>
+<h2 id="图解"><a href="#图解" class="headerlink" title="图解"></a>图解</h2><p><img src="https://cdn.jsdelivr.net/gh/Mark-cx0/picbs@main/%E5%8F%AF%E8%A7%86%E5%8C%96%E5%9C%A8%E7%BA%BF%E5%8D%9A%E5%AE%A2.png" alt="简单创建过程"></p>
+<p><img src="https://cdn.jsdelivr.net/gh/Mark-cx0/picbs@main/GitHubActionHexo.png" alt="关系图"></p>
+<h2 id="步骤执行"><a href="#步骤执行" class="headerlink" title="步骤执行"></a>步骤执行</h2><h3 id="获取hexo"><a href="#获取hexo" class="headerlink" title="获取hexo"></a>获取 hexo</h3><p>直接百度 hexo，进入官网。</p>
+<p>1. 若安装在本地，可稍后上传至 github<br>2. 若想直接 fork，先 GitHub 所需建的库</p>
+<h3 id="github库"><a href="#github库" class="headerlink" title="github库"></a>github 库</h3><p>在你的 github 新建两个库，一个私有（也可公有：这样其他人也可以访问到你的源码）、一个公有</p>
+<p>私有库：存放源码<br>公有库：访问节点，存静态 HTML。库名： &lt;你的 GitHub 用户名&gt;.github.io.git 类如：xxx.github.io.git </p>
+<h3 id="关联两个仓库"><a href="#关联两个仓库" class="headerlink" title="关联两个仓库"></a>关联两个仓库</h3><p>本地 ssh 生成<br>存放源码仓库使用生产的私钥；自己 GitHub 仓库设置公钥。</p>
+<h3 id="action创建流"><a href="#action创建流" class="headerlink" title="action创建流"></a>action 创建流</h3><p>在源码仓库 action 中创建一个新的流用来进行构建。</p>
+<h3 id="注：笼统记录，详解见下列参考"><a href="#注：笼统记录，详解见下列参考" class="headerlink" title="注：笼统记录，详解见下列参考"></a>注：笼统记录，详解见下列参考</h3><p><a href="https://blog.csdn.net/qq_41426117/article/details/108703295">GitHub Action + Hexo 实现在线写作</a></p>
+<p><a href="https://blog.csdn.net/u012208219/article/details/106883054">利用 GitHub+Actions 自动部署 Hexo 博客</a></p>
+]]></content>
+      <categories>
+        <category>web前端</category>
+      </categories>
+      <tags>
+        <tag>hexo</tag>
+        <tag>GitHub</tag>
+        <tag>在线部署</tag>
+        <tag>next</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>文章标题</title>
+    <url>/2022/08/19/blog_sample/</url>
+    <content><![CDATA[<h2 id="示例模板"><a href="#示例模板" class="headerlink" title="示例模板"></a>示例模板</h2><p>这是一个 hexo 文章模板！</p>
+]]></content>
+      <categories>
+        <category>博客模板</category>
+      </categories>
+      <tags>
+        <tag>标签1</tag>
+        <tag>标签2</tag>
+        <tag>标签3</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>VMware 问题记录</title>
+    <url>/2022/08/19/%E6%88%91%E9%81%87%E5%88%B0VMware%E7%9A%84%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>我在安装和使用 VMware15.5.2 版本遇到的一些问题。</p>
+<h2 id="问题一：安装时一直卡在”正在安装虚拟网络驱动…”"><a href="#问题一：安装时一直卡在”正在安装虚拟网络驱动…”" class="headerlink" title="问题一：安装时一直卡在”正在安装虚拟网络驱动…”"></a>问题一：安装时一直卡在” 正在安装虚拟网络驱动…”</h2><p>环境：<br>硬件架构环境：x86<br>软件环境：win10</p>
+<p>问题根源：<br>  因为原来的电脑上是装有 VMware16.2 的，我手动操作卸载。实际上在 win10 内的注册表中关于 VMware 的信息仍旧存在。<br>解决：<br>  1. 自己手动卸载注册表中的相关信息。(不推荐：因为你不清楚 VMware 进行了哪些注册，以及手动寻找繁琐，毕竟作为工具来使用 VMware 而不是开发它)。<br>  2. 使用工具 CCleaner 帮助清除后安装</p>
+<h2 id="问题二：VMware安装VMware-tool后仍旧无法主CP和虚拟机段相互复制粘贴"><a href="#问题二：VMware安装VMware-tool后仍旧无法主CP和虚拟机段相互复制粘贴" class="headerlink" title="问题二：VMware安装VMware tool后仍旧无法主CP和虚拟机段相互复制粘贴"></a>问题二：VMware 安装 VMware tool 后仍旧无法主 CP 和虚拟机段相互复制粘贴</h2><p>环境：<br>软件环境：VMware15.5.2、Ubuntu18.04</p>
+<p>问题根源：<br>  从 Ubuntu14.04 开始 open-vm-tools 代替了官方 VMware Tools，所以应该改安装 open-vm-tools <br>解决：<br>  <code>apt-get install open-vm-tools-desktop fuse</code></p>
+<p>总结：一般对于软环境出现的不兼容事件很多，在使用软件时应该遵循软件发布者的准确要求，并且理解软件使用方式方法。无需自己画蛇添足自寻烦恼！</p>
+]]></content>
+      <categories>
+        <category>工具使用</category>
+      </categories>
+      <tags>
+        <tag>环境</tag>
+        <tag>tool</tag>
+        <tag>VMware</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Picgo 设置 github 图床</title>
+    <url>/2022/07/26/picgo_github/</url>
+    <content><![CDATA[<h3 id="下载picgo"><a href="#下载picgo" class="headerlink" title="下载picgo"></a>下载 picgo</h3><blockquote>
+<ol>
+<li><a href="https://github.com/Molunerfinn/PicGo/releases/">picgo 下载</a><br>根据需要进行下载</li>
+<li>安装</li>
+<li>图床仓库<blockquote>
+<ol>
+<li> github 新建数一个仓库来作为图床数据库 (如果没有 github 账号可以自行使用邮箱进行注册 <a href="https://github.com/">github.com</a>)</li>
+<li> 登录 github 后，直接到 Settings/Developer settings 处的 personal access token；点击 Generate new token 创建新的 token<br>找不位置点此处: <a href="https://github.com/settings/tokens">直达 github token</a>。<br>创建时 repo 选项必选其它随意或根据个人需求选择。<br><em>注意：token 创建好以后记得保存，最好长期保存，因为如果你需要在别的电脑也能用 picgo 上传图片的话需要用到</em></li>
+</ol>
+</blockquote>
+</li>
+<li> picgo app github 图床仓库设置<br>如下图：<br><img src="https://raw.githubusercontent.com/Mark-cx0/picbs/main/202207291827573.png"></li>
+</ol>
+</blockquote>
+<h3 id="picgo问题记录"><a href="#picgo问题记录" class="headerlink" title="picgo问题记录"></a>picgo 问题记录</h3><blockquote>
+<p>问题：同一张图片二次上传如果上传失败提示：“请检查网络或者配置”<br>参考解决方案：</p>
+<ol>
+<li>重启 picgo</li>
+<li> 到 picgo 设置 -&gt; 时间戳重命名；将其设置为开。</li>
+</ol>
+</blockquote>
+<h3 id="raw-githubusercontent-com代理点失效问题"><a href="#raw-githubusercontent-com代理点失效问题" class="headerlink" title="raw.githubusercontent.com代理点失效问题"></a>raw.githubusercontent.com 代理点失效问题</h3><blockquote>
+<p>问题：写这篇文章时 picgo 到 github 的代理域为 raw.githubusercontent.com, 因为是国外的；<br>墙的缘故可能导致失效无法访问到 github，我曾经遇到过此类问题。<br>参考解决方案：</p>
+<blockquote>
+<ol>
+<li>进行域名的 ip 查询 -&gt;<a href="https://ip.cn/">IP 查询</a> </li>
+<li>打开电脑的 host 文件；Windows host 文件位置 (C:\Windows\System32\drivers\etc)</li>
+<li><code>win+r</code> 输入 cmd 打开命令行窗口 <code>ping [ip]</code> 查询此 ip 是否可用，如不可用大概率被墙。<br>硬要用者，可以考虑科学上网<img src="https://user-images.githubusercontent.com/59907961/181743769-363f15db-94fb-4a92-8334-ae9fa1b8d7b7.png" alt="01665A38"></li>
+<li>末尾输入如下格式 [ip 域名] 如：185.199.109.133 raw.githubusercontent.com<br>意为使用 ip 代替域名进行访问</li>
+<li>命令行输入：<code>ipconfig/flushdns</code> 刷新一下 DNS</li>
+<li> 再次尝试访问域名</li>
+</ol>
+</blockquote>
+</blockquote>
+]]></content>
+      <categories>
+        <category>图床</category>
+      </categories>
+      <tags>
+        <tag>图床</tag>
+        <tag>picgo</tag>
+        <tag>github</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>linux cp 命令无法创建链接符号</title>
+    <url>/2022/07/25/cp_dont_user_link/</url>
+    <content><![CDATA[<h3 id="现象描述"><a href="#现象描述" class="headerlink" title="现象描述"></a>现象描述</h3><blockquote>
+<p>在 Ubuntu 下使用 cp 命令进行复制的时候，所复制的目录下的链接无法创建。<br>如下图：</p>
+</blockquote>
+<blockquote>
+<p><img src="https://raw.githubusercontent.com/Mark-cx0/picbs/main/202207291712443.png" alt="截图"></p>
+</blockquote>
+<h3 id="解决"><a href="#解决" class="headerlink" title="解决"></a>解决</h3><blockquote>
+<p><code>cp --help</code> 查看帮助目录<br>-L, –dereference            always follow symbolic links in SOURCE<br>其中 - L 参数                   始终遵循源中的符号链接<br><em>所以 <code>cp -rLf</code> [复制的目录]</em></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>linux 命令</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+        <tag>命令</tag>
+      </tags>
+  </entry>
+</search>
